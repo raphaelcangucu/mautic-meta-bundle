@@ -1,0 +1,18 @@
+parameters:
+    level: 5
+    treatPhpDocTypesAsCertain: true
+    type_coverage:
+        return: 87.9
+        param: 75
+        property: 68
+        constant: 3
+    paths:
+        - Application
+        - Controller
+        - Domain
+        - Entity
+        - Infrastructure
+        - Security
+    bootstrapFiles:
+        - ../../vendor/autoload.php
+    tmpDir: ../../var/cache/phpstan-meta

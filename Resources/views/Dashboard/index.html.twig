@@ -1,0 +1,17 @@
+{% extends '@MauticCore/Default/content.html.twig' %}
+{% block mauticContent %}meta{% endblock %}
+{% block headerTitle %}{{ 'mautic.meta.menu.overview'|trans }}{% endblock %}
+{% block content %}
+<div class="row pa-md">
+    <div class="col-md-4"><div class="panel panel-default"><div class="panel-body"><h2>{{ connectionCount }}</h2><p>{{ 'mautic.meta.connections'|trans }}</p></div></div></div>
+    <div class="col-md-4"><div class="panel panel-default"><div class="panel-body"><h2>{{ assetCount }}</h2><p>{{ 'mautic.meta.assets'|trans }}</p></div></div></div>
+    <div class="col-md-4"><div class="panel panel-default"><div class="panel-body"><h2>{{ eventCount }}</h2><p>{{ 'mautic.meta.webhook.events'|trans }}</p></div></div></div>
+</div>
+<div class="row pa-md pt-0">
+    <div class="col-md-3"><div class="panel panel-default"><div class="panel-body"><h2>{{ messageCount }}</h2><p>Meta messages</p></div></div></div>
+    <div class="col-md-3"><div class="panel panel-default"><div class="panel-body"><h2>{{ identityCount }}</h2><p>Contact identities</p></div></div></div>
+    <div class="col-md-3"><div class="panel {{ queueFailed > 0 ? 'panel-danger' : 'panel-default' }}"><div class="panel-body"><h2>{{ queuePending }} / {{ queueFailed }}</h2><p>Queue pending / failed</p></div></div></div>
+    <div class="col-md-3"><div class="panel {{ webhookFailures > 0 ? 'panel-danger' : 'panel-default' }}"><div class="panel-body"><h2>{{ webhookFailures }}</h2><p>Failed webhooks</p></div></div></div>
+</div>
+<div class="alert alert-info ma-md"><strong>Queue worker:</strong> run <code>php bin/console mautic:meta:queue:process --limit=100</code> every minute.</div>
+{% endblock %}

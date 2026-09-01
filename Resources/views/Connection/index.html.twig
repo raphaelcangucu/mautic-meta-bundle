@@ -1,0 +1,34 @@
+{% extends '@MauticCore/Default/content.html.twig' %}
+{% block mauticContent %}meta{% endblock %}
+{% block headerTitle %}{{ 'mautic.meta.menu.connections'|trans }}{% endblock %}
+{% block content %}
+<div class="panel panel-default ma-md">
+    <div class="panel-heading"><a class="btn btn-primary" href="{{ path('mautic_meta_connection_new') }}">{{ 'mautic.meta.connection.new'|trans }}</a></div>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead><tr><th>{{ 'mautic.core.name'|trans }}</th><th>App ID</th><th>Status</th><th>Graph API</th><th>{{ 'mautic.meta.assets'|trans }}</th><th></th></tr></thead>
+            <tbody>
+            {% for connection in connections %}
+                <tr>
+                    <td>{{ connection.name }} <a class="btn btn-xs btn-default pull-right" href="{{ path('mautic_meta_asset_new', {connectionId: connection.id}) }}">{{ 'mautic.meta.asset.add'|trans }}</a><br><small class="text-muted">Webhook: <code>{{ url('mautic_meta_webhook', {connectionId: connection.id}) }}</code></small></td>
+                    <td>{{ connection.appId }}</td><td>{{ connection.status }}</td><td>{{ connection.graphVersion }}</td>
+                    <td>
+                        {% for asset in connection.assets %}
+                            <div class="mb-xs"><a href="{{ path('mautic_meta_asset_edit', {assetId: asset.id}) }}">{{ asset.name }}</a> <small class="text-muted">{{ asset.type.value }}</small>
+                            <form class="d-inline" method="post" action="{{ path('mautic_meta_asset_delete', {assetId: asset.id}) }}" onsubmit="return confirm('Delete this asset and its message history?');"><input type="hidden" name="_token" value="{{ csrf_token('meta_asset_delete_' ~ asset.id) }}"><button class="btn btn-danger btn-xs" type="submit" title="Delete asset"><i class="ri-delete-bin-line"></i></button></form></div>
+                        {% else %}<span class="text-muted">0</span>{% endfor %}
+                    </td>
+                    <td>
+                        <a class="btn btn-default btn-xs" href="{{ path('mautic_meta_connection_edit', {connectionId: connection.id}) }}">Edit</a>
+                        <form class="d-inline" method="post" action="{{ path('mautic_meta_connection_test', {connectionId: connection.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_connection_test_' ~ connection.id) }}"><button class="btn btn-info btn-xs" type="submit">Test</button></form>
+                        <form class="d-inline" method="post" action="{{ path('mautic_meta_connection_delete', {connectionId: connection.id}) }}" onsubmit="return confirm('Delete this connection, all assets and their Meta history?');"><input type="hidden" name="_token" value="{{ csrf_token('meta_connection_delete_' ~ connection.id) }}"><button class="btn btn-danger btn-xs" type="submit">Delete</button></form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="text-center text-muted">{{ 'mautic.meta.connections.empty'|trans }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

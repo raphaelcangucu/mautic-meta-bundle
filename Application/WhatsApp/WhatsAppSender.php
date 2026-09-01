@@ -1,0 +1,101 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MauticPlugin\MauticMetaBundle\Application\WhatsApp;
+
+use Doctrine\ORM\EntityManagerInterface;
+use Mautic\LeadBundle\Entity\Lead;
+use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
+use MauticPlugin\MauticMetaBundle\Domain\AssetType;
+use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
+use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
+use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
+
+final class WhatsAppSender
+{
+    public function __construct(
+        private MetaGraphClientInterface $graph,
+        private EntityManagerInterface $entityManager,
+        private PhoneNormalizer $phones,
+        private IdentityManager $identities,
+    ) {}
+
+    public function sendText(MetaAsset $phoneAsset, string $recipient, string $text, bool $previewUrl = false, ?Lead $contact = null): WhatsAppSendResult
+    {
+        if ('' === trim($text)) {
+            throw new \InvalidArgumentException('WhatsApp text cannot be empty.');
+        }
+
+        return $this->send($phoneAsset, $recipient, 'text', ['text' => ['body' => $text, 'preview_url' => $previewUrl]], $contact);
+    }
+
+    public function sendTemplate(MetaAsset $phoneAsset, string $recipient, string $name, string $language, array $components = [], ?Lead $contact = null): WhatsAppSendResult
+    {
+        if ('' === trim($name) || '' === trim($language)) {
+            throw new \InvalidArgumentException('WhatsApp template name and language are required.');
+        }
+        $template = ['name' => $name, 'language' => ['code' => $language]];
+        if ([] !== $components) {
+            $template['components'] = $components;
+        }
+
+        return $this->send($phoneAsset, $recipient, 'template', ['template' => $template], $contact);
+    }
+
+    public function sendMedia(MetaAsset $phoneAsset, string $recipient, string $mediaType, array $media, ?Lead $contact = null): WhatsAppSendResult
+    {
+        if (!in_array($mediaType, ['image', 'video', 'audio', 'document', 'sticker'], true)) {
+            throw new \InvalidArgumentException('Unsupported WhatsApp media type.');
+        }
+        if (empty($media['id']) && empty($media['link'])) {
+            throw new \InvalidArgumentException('WhatsApp media requires an uploaded id or public link.');
+        }
+
+        return $this->send($phoneAsset, $recipient, $mediaType, [$mediaType => $media], $contact);
+    }
+
+    public function sendInteractive(MetaAsset $phoneAsset, string $recipient, array $interactive, ?Lead $contact = null): WhatsAppSendResult
+    {
+        if (!in_array($interactive['type'] ?? null, ['button', 'list', 'product', 'product_list', 'flow'], true) || !is_array($interactive['body'] ?? null)) {
+            throw new \InvalidArgumentException('Invalid WhatsApp interactive message.');
+        }
+
+        return $this->send($phoneAsset, $recipient, 'interactive', ['interactive' => $interactive], $contact);
+    }
+
+    private function send(MetaAsset $asset, string $recipient, string $type, array $content, ?Lead $contact): WhatsAppSendResult
+    {
+        if (AssetType::WhatsAppPhoneNumber !== $asset->getType() || !$asset->isPublished() || 'active' !== $asset->getStatus()) {
+            throw new \InvalidArgumentException('A published, active WhatsApp phone-number asset is required.');
+        }
+        $region = (string) ($asset->getSettings()['default_region'] ?? 'BR');
+        $recipient = $this->phones->normalize($recipient, $region);
+        $this->identities->assertCanSend($asset, $recipient, $contact);
+        $payload = ['messaging_product' => 'whatsapp', 'recipient_type' => 'individual', 'to' => $recipient, 'type' => $type] + $content;
+        $log = (new MetaMessage())
+            ->setAsset($asset)
+            ->setContact($contact)
+            ->setChannel('whatsapp')
+            ->setMessageType($type)
+            ->setRecipient($recipient)
+            ->setPayload($payload);
+        $this->entityManager->persist($log);
+        $this->entityManager->flush();
+        try {
+            $response = $this->graph->post($asset->getConnection(), $asset->getExternalId().'/messages', $payload);
+            $messageId = (string) ($response['messages'][0]['id'] ?? '');
+            if ('' === $messageId) {
+                throw new \RuntimeException('Meta response did not contain a WhatsApp message ID.');
+            }
+            $log->setExternalId($messageId)->setResponse($response)->setStatus('accepted');
+            $this->entityManager->flush();
+
+            return new WhatsAppSendResult((int) $log->getId(), $messageId, 'accepted', $recipient);
+        } catch (\Throwable $exception) {
+            $log->setError($exception->getMessage())->setStatus('failed');
+            $this->entityManager->flush();
+            throw $exception;
+        }
+    }
+}

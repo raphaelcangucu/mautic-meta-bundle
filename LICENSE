@@ -1,0 +1,15 @@
+Mautic Meta Bundle is free software licensed under the GNU General Public
+License, version 3 or (at your option) any later version (GPL-3.0-or-later).
+
+Copyright (C) 2026 Raphael Cangucu and contributors.
+
+You may redistribute and modify this software under the terms of the GNU
+General Public License as published by the Free Software Foundation. This
+software is distributed without any warranty; without even the implied
+warranty of merchantability or fitness for a particular purpose.
+
+The complete license text is available at:
+https://www.gnu.org/licenses/gpl-3.0.txt
+
+OpenReply is credited as architectural inspiration and remains available
+under its own MIT license; no OpenReply source code is embedded in this bundle.

@@ -1,0 +1,20 @@
+{% extends '@MauticCore/Default/content.html.twig' %}
+{% block mauticContent %}meta{% endblock %}
+{% block headerTitle %}Meta operations{% endblock %}
+{% block content %}
+<div class="pa-md">
+<div class="panel panel-default"><div class="panel-heading"><strong>Outbound queue</strong> <span class="text-muted">latest 100</span></div><div class="table-responsive"><table class="table table-hover"><thead><tr><th>ID</th><th>Created</th><th>Asset</th><th>Operation</th><th>Status</th><th>Attempts</th><th>Error</th><th></th></tr></thead><tbody>
+{% for job in jobs %}<tr><td>{{ job.id }}</td><td>{{ job.dateAdded|date('Y-m-d H:i:s') }}</td><td>{{ job.asset.name }}</td><td>{{ job.operation }}</td><td><span class="label label-{{ job.status == 'failed' ? 'danger' : (job.status == 'completed' ? 'success' : 'default') }}">{{ job.status }}</span></td><td>{{ job.attempts }}/{{ job.maxAttempts }}</td><td><small>{{ job.lastError ?: '—' }}</small></td><td>
+{% if job.status in ['failed', 'cancelled'] %}<form class="d-inline" method="post" action="{{ path('mautic_meta_job_retry', {jobId: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_job_retry_' ~ job.id) }}"><button class="btn btn-primary btn-xs">Retry</button></form>{% endif %}
+{% if job.status in ['pending', 'retry'] %}<form class="d-inline" method="post" action="{{ path('mautic_meta_job_cancel', {jobId: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_job_cancel_' ~ job.id) }}"><button class="btn btn-warning btn-xs">Cancel</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="8" class="text-muted text-center">No queued jobs.</td></tr>{% endfor %}</tbody></table></div></div>
+
+<div class="panel panel-default"><div class="panel-heading"><strong>Webhook events</strong> <span class="text-muted">latest 100</span></div><div class="table-responsive"><table class="table table-hover"><thead><tr><th>ID</th><th>Received</th><th>Connection</th><th>Object</th><th>Status</th><th>Attempts</th><th>Error</th><th></th></tr></thead><tbody>
+{% for event in events %}<tr><td>{{ event.id }}</td><td>{{ event.receivedAt|date('Y-m-d H:i:s') }}</td><td>{{ event.connection.name }}</td><td>{{ event.objectType }}</td><td>{{ event.status }}</td><td>{{ event.attempts }}</td><td><small>{{ event.lastError ?: '—' }}</small></td><td>{% if event.status == 'failed' %}<form method="post" action="{{ path('mautic_meta_webhook_replay', {eventId: event.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_webhook_replay_' ~ event.id) }}"><button class="btn btn-primary btn-xs">Replay</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="8" class="text-muted text-center">No webhook events.</td></tr>{% endfor %}</tbody></table></div></div>
+
+<div class="panel panel-default"><div class="panel-heading"><strong>Message log</strong> <span class="text-muted">latest 100</span></div><div class="table-responsive"><table class="table table-hover"><thead><tr><th>ID</th><th>Date</th><th>Channel</th><th>Direction</th><th>Asset</th><th>Recipient</th><th>Type</th><th>Status</th><th>Error</th></tr></thead><tbody>
+{% for message in messages %}<tr><td>{{ message.id }}</td><td>{{ message.dateAdded|date('Y-m-d H:i:s') }}</td><td>{{ message.channel }}</td><td>{{ message.direction }}</td><td>{{ message.asset.name }}</td><td>{{ message.recipient }}</td><td>{{ message.messageType }}</td><td>{{ message.status }}</td><td><small>{{ message.error ?: '—' }}</small></td></tr>
+{% else %}<tr><td colspan="9" class="text-muted text-center">No messages.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

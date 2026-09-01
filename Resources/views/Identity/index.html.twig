@@ -1,0 +1,26 @@
+{% extends '@MauticCore/Default/content.html.twig' %}
+{% block mauticContent %}meta{% endblock %}
+{% block headerTitle %}{{ 'mautic.meta.identities'|trans }}{% endblock %}
+{% block content %}
+<div class="panel panel-default ma-md"><div class="panel-body">
+    <p>{{ 'mautic.meta.identities.help'|trans }}</p>
+    <div class="table-responsive"><table class="table table-hover">
+        <thead><tr><th>{{ 'mautic.core.channel'|trans }}</th><th>Meta ID / phone</th><th>{{ 'mautic.lead.lead'|trans }}</th><th>{{ 'mautic.meta.consent'|trans }}</th><th>{{ 'mautic.core.date.last.active'|trans }}</th><th></th></tr></thead>
+        <tbody>
+        {% for identity in identities %}
+            {% set formId = 'meta-identity-' ~ identity.id %}
+            <tr>
+                <td><form id="{{ formId }}" method="post" action="{{ path('mautic_meta_identity_update', {identityId: identity.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_identity_' ~ identity.id) }}"></form>{{ identity.asset.name }}</td>
+                <td>{{ identity.username ?: identity.externalId }}</td>
+                <td><input form="{{ formId }}" class="form-control" type="number" min="0" name="contact_id" value="{{ identity.contact ? identity.contact.id : '' }}" placeholder="Contact ID"></td>
+                <td><select form="{{ formId }}" class="form-control" name="consent_status">
+                    {% for value, label in {'unknown': 'Unknown', 'opted_in': 'Opted in', 'opted_out': 'Opted out'} %}<option value="{{ value }}"{% if identity.consentStatus.value == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select></td>
+                <td>{{ identity.lastInteractionAt ? identity.lastInteractionAt|date('Y-m-d H:i') : '—' }}</td>
+                <td><button form="{{ formId }}" class="btn btn-primary btn-sm" type="submit">{{ 'mautic.core.form.save'|trans }}</button></td>
+            </tr>
+        {% else %}<tr><td colspan="6">{{ 'mautic.meta.identities.empty'|trans }}</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
+</div></div>
+{% endblock %}

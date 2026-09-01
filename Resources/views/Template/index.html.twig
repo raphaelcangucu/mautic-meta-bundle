@@ -1,0 +1,20 @@
+{% extends '@MauticCore/Default/content.html.twig' %}
+{% block mauticContent %}meta{% endblock %}
+{% block headerTitle %}{{ 'mautic.meta.menu.templates'|trans }}{% endblock %}
+{% block content %}
+<div class="panel panel-default ma-md">
+    <div class="panel-heading">
+        <a class="btn btn-success btn-sm" href="{{ path('mautic_meta_template_new') }}">Create template</a>
+        {% for asset in businessAccounts %}
+        <form method="post" action="{{ path('mautic_meta_templates_sync', {assetId: asset.id}) }}" style="display:inline">
+            <input type="hidden" name="_token" value="{{ csrf_token('meta_template_sync_' ~ asset.id) }}">
+            <button class="btn btn-primary btn-sm" type="submit">Sync {{ asset.name }}</button>
+        </form>
+        {% endfor %}
+    </div>
+    <div class="table-responsive"><table class="table table-hover">
+        <thead><tr><th>Name</th><th>Language</th><th>WABA</th><th>Category</th><th>Status</th><th>Quality</th><th>Last sync</th><th></th></tr></thead>
+        <tbody>{% for template in templates %}<tr><td>{{ template.name }}</td><td>{{ template.language }}</td><td>{{ template.businessAccount.name }}</td><td>{{ template.category }}</td><td>{{ template.status }}</td><td>{{ template.qualityScore }}</td><td>{{ template.lastSyncedAt|date('Y-m-d H:i:s') }}</td><td><a class="btn btn-default btn-xs" href="{{ path('mautic_meta_template_edit', {templateId: template.id}) }}">Edit</a><form method="post" action="{{ path('mautic_meta_template_delete', {templateId: template.id}) }}" style="display:inline" onsubmit="return confirm('Delete this template from Meta?')"><input type="hidden" name="_token" value="{{ csrf_token('meta_template_delete_' ~ template.id) }}"><button class="btn btn-danger btn-xs" type="submit">Delete</button></form></td></tr>{% else %}<tr><td colspan="8" class="text-center text-muted">No synchronized templates.</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endblock %}

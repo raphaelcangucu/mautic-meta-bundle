@@ -1,0 +1,12 @@
+{% extends '@MauticCore/Default/content.html.twig' %}
+{% block mauticContent %}meta{% endblock %}
+{% block headerTitle %}{{ editing ? 'Edit WhatsApp template' : 'Create WhatsApp template' }}{% endblock %}
+{% block content %}
+<div class="panel panel-default ma-md"><div class="panel-body">
+    <p class="text-muted">The template is submitted directly to Meta. Components must be a JSON array using the official WhatsApp template component format.</p>
+    {{ form_start(form) }}{{ form_widget(form) }}
+    <button type="submit" class="btn btn-primary">{{ 'mautic.core.form.save'|trans }}</button>
+    <a class="btn btn-default" href="{{ path('mautic_meta_templates') }}">{{ 'mautic.core.form.cancel'|trans }}</a>
+    {{ form_end(form) }}
+</div></div>
+{% endblock %}

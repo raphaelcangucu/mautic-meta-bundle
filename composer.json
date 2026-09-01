@@ -1,0 +1,20 @@
+{
+    "name": "raphaelcangucu/mautic-meta-bundle",
+    "description": "Multi-account Meta integration for Mautic, with WhatsApp and Instagram channels.",
+    "type": "mautic-plugin",
+    "license": "GPL-3.0-or-later",
+    "authors": [
+        {"name": "Raphael Cangucu"},
+        {"name": "Diwen Huang", "homepage": "https://github.com/diwenne/openreply", "role": "OpenReply upstream inspiration"}
+    ],
+    "require": {
+        "php": ">=8.2",
+        "mautic/core-lib": "^7.0",
+        "symfony/http-client": "^7.0",
+        "symfony/rate-limiter": "^7.0"
+    },
+    "autoload": {
+        "psr-4": {"MauticPlugin\\MauticMetaBundle\\": ""}
+    },
+    "extra": {"install-directory-name": "MauticMetaBundle"}
+}
