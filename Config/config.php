@@ -15,7 +15,7 @@ use MauticPlugin\MauticMetaBundle\Controller\WebhookController;
 return [
     'name'        => 'Mautic Meta Integration',
     'description' => 'Multi-account WhatsApp and Instagram integration using the official Meta Graph API.',
-    'version'     => '0.8.2',
+    'version'     => '0.8.3',
     'author'      => 'Raphael Cangucu',
     'routes'      => [
         'main' => [
@@ -33,7 +33,7 @@ return [
             'mautic_meta_template_new' => ['path' => '/meta/whatsapp/templates/new', 'controller' => TemplateController::class.'::new', 'method' => ['GET', 'POST']],
             'mautic_meta_template_edit' => ['path' => '/meta/whatsapp/templates/{templateId}/edit', 'controller' => TemplateController::class.'::edit', 'method' => ['GET', 'POST']],
             'mautic_meta_template_delete' => ['path' => '/meta/whatsapp/templates/{templateId}/delete', 'controller' => TemplateController::class.'::delete', 'method' => 'POST'],
-            'mautic_meta_identities' => ['path' => '/meta/identities', 'controller' => IdentityController::class.'::index'],
+            'mautic_meta_identities' => ['path' => '/meta/identities/{page}', 'controller' => IdentityController::class.'::index', 'defaults' => ['page' => 1], 'requirements' => ['page' => '\\d+']],
             'mautic_meta_identity_update' => ['path' => '/meta/identities/{identityId}', 'controller' => IdentityController::class.'::update', 'method' => 'POST'],
             'mautic_meta_consent_sync_preview' => ['path' => '/meta/identities/consent-sync/preview', 'controller' => IdentityController::class.'::previewSync', 'method' => 'POST'],
             'mautic_meta_consent_sync_start' => ['path' => '/meta/identities/consent-sync/start', 'controller' => IdentityController::class.'::startSync', 'method' => 'POST'],

@@ -24,13 +24,28 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class IdentityController extends AbstractController
 {
-    public function index(CorePermissions $permissions, MetaContactIdentityRepository $identities, MetaAssetRepository $assets, MetaConsentSyncRunRepository $runs, Request $request): Response
+    public function index(int $page, CorePermissions $permissions, MetaContactIdentityRepository $identities, MetaAssetRepository $assets, MetaConsentSyncRunRepository $runs, Request $request): Response
     {
         if (!$permissions->isGranted('meta:messages:view')) { throw $this->createAccessDeniedException(); }
 
+        $page = max(1, $page);
+        $limit = max(5, min(100, (int) $request->getSession()->get('mautic.metaIdentities.limit', 30)));
+        $search = trim((string) $request->query->get('search', ''));
+        $assetId = max(0, (int) $request->query->get('asset', 0)) ?: null;
+        $consent = ConsentStatus::tryFrom((string) $request->query->get('consent', ''))?->value;
+        $identityPage = $identities->findPage($search, $assetId, $consent, ($page - 1) * $limit, $limit);
+        $lastPage = max(1, (int) ceil($identityPage['total'] / $limit));
+        if ($page > $lastPage) {
+            return $this->redirectToRoute('mautic_meta_identities', ['page' => $lastPage, 'search' => $search, 'asset' => $assetId, 'consent' => $consent]);
+        }
+        $allAssets = $assets->findAll();
+
         return $this->render('@MauticMeta/Identity/index.html.twig', [
-            'identities' => $identities->findBy([], ['lastInteractionAt' => 'DESC'], 250),
-            'whatsappAssets' => array_values(array_filter($assets->findAll(), static fn ($asset): bool => AssetType::WhatsAppPhoneNumber === $asset->getType())),
+            'identities' => $identityPage['items'],
+            'identityTotal' => $identityPage['total'], 'identityPage' => $page, 'identityLimit' => $limit,
+            'identityFilters' => ['search' => $search, 'asset' => $assetId, 'consent' => $consent],
+            'allAssets' => $allAssets,
+            'whatsappAssets' => array_values(array_filter($allAssets, static fn ($asset): bool => AssetType::WhatsAppPhoneNumber === $asset->getType())),
             'syncRuns' => $runs->findBy([], ['id' => 'DESC'], 20),
             'syncPreview' => $request->getSession()->get('meta_consent_sync_preview'),
         ]);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.3 - 2026-09-02
+
+- Add Mautic-style pagination and page-size controls to Meta identities.
+- Add identity filters for free-text search, Meta asset, and consent status.
+- Replace raw contact-ID editing with Mautic's asynchronous contact autocomplete.
+
 ## 0.8.2 - 2026-09-02
 
 - Add the missing localized “Last activity” identity-list label.

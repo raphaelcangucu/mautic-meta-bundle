@@ -34,6 +34,12 @@
 </div></div>
 <div class="panel panel-default ma-md"><div class="panel-body">
     <p>{{ 'mautic.meta.identities.help'|trans }}</p>
+    <form method="get" action="{{ path('mautic_meta_identities') }}" class="row mb-md">
+        <div class="col-md-5"><label>Buscar</label><input type="search" name="search" value="{{ identityFilters.search }}" class="form-control" placeholder="Nome, e-mail, telefone, Meta ID ou ativo"></div>
+        <div class="col-md-3"><label>Ativo</label><select name="asset" class="form-control"><option value="">Todos</option>{% for asset in allAssets %}<option value="{{ asset.id }}"{% if identityFilters.asset == asset.id %} selected{% endif %}>{{ asset.name }}</option>{% endfor %}</select></div>
+        <div class="col-md-2"><label>{{ 'mautic.meta.consent'|trans }}</label><select name="consent" class="form-control"><option value="">Todos</option><option value="opted_in"{% if identityFilters.consent == 'opted_in' %} selected{% endif %}>Opted in</option><option value="opted_out"{% if identityFilters.consent == 'opted_out' %} selected{% endif %}>Opted out</option><option value="unknown"{% if identityFilters.consent == 'unknown' %} selected{% endif %}>Unknown</option></select></div>
+        <div class="col-md-2"><label>&nbsp;</label><div><button class="btn btn-primary" type="submit"><i class="ri-search-line"></i> Filtrar</button> <a class="btn btn-default" href="{{ path('mautic_meta_identities') }}">Limpar</a></div></div>
+    </form>
     <div class="table-responsive"><table class="table table-hover">
         <thead><tr><th>{{ 'mautic.core.channel'|trans }}</th><th>Meta ID / phone</th><th>{{ 'mautic.lead.lead'|trans }}</th><th>{{ 'mautic.meta.consent'|trans }}</th><th>{{ 'mautic.meta.last_activity'|trans }}</th><th></th></tr></thead>
         <tbody>
@@ -42,7 +48,10 @@
             <tr>
                 <td><form id="{{ formId }}" method="post" action="{{ path('mautic_meta_identity_update', {identityId: identity.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_identity_' ~ identity.id) }}"></form>{{ identity.asset.name }}</td>
                 <td>{{ identity.username ?: identity.externalId }}</td>
-                <td><input form="{{ formId }}" class="form-control" type="number" min="0" name="contact_id" value="{{ identity.contact ? identity.contact.id : '' }}" placeholder="Contact ID"></td>
+                <td><select form="{{ formId }}" class="form-control chosen" name="contact_id" data-chosen-lookup="lead:contactList" data-model="filter" data-chosen-placeholder="Digite para buscar um contato" data-allow-clear="true">
+                    <option value=""></option>
+                    {% if identity.contact %}<option value="{{ identity.contact.id }}" selected>{{ identity.contact.primaryIdentifier }} (#{{ identity.contact.id }})</option>{% endif %}
+                </select></td>
                 <td><select form="{{ formId }}" class="form-control" name="consent_status">
                     {% for value, label in {'unknown': 'Unknown', 'opted_in': 'Opted in', 'opted_out': 'Opted out'} %}<option value="{{ value }}"{% if identity.consentStatus.value == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
                 </select></td>
@@ -52,5 +61,10 @@
         {% else %}<tr><td colspan="6">{{ 'mautic.meta.identities.empty'|trans }}</td></tr>{% endfor %}
         </tbody>
     </table></div>
+    <div class="panel-footer">{{ include('@MauticCore/Helper/pagination.html.twig', {
+        totalItems: identityTotal, page: identityPage, limit: identityLimit,
+        menuLinkId: 'mautic_meta_identities', baseUrl: path('mautic_meta_identities'), sessionVar: 'metaIdentities',
+        target: '.page-wrapper', queryString: '&search=' ~ identityFilters.search|url_encode ~ '&asset=' ~ (identityFilters.asset ?: '') ~ '&consent=' ~ (identityFilters.consent ?: '')
+    }) }}</div>
 </div></div>
 {% endblock %}
