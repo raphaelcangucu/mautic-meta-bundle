@@ -8,10 +8,12 @@ use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Positive;
 
 final class MetaAssetType extends AbstractType
 {
@@ -31,6 +33,10 @@ final class MetaAssetType extends AbstractType
             ->add('default_region', TextType::class, ['required' => false, 'label' => 'Default phone region'])
             ->add('contact_match_field', TextType::class, ['required' => false, 'label' => 'Contact field for exact identity matching', 'help' => 'Optional field alias containing the WhatsApp number or Instagram user ID. WhatsApp falls back to a unique phone/mobile match.'])
             ->add('require_opt_in', CheckboxType::class, ['required' => false, 'label' => 'Require explicit WhatsApp opt-in before sending'])
+            ->add('daily_send_limit', IntegerType::class, ['required' => false, 'label' => 'Maximum messages per 24 hours', 'help' => 'May be lowered. Safety ceiling: WhatsApp 250; Instagram/Facebook 50.', 'constraints' => [new Positive()]])
+            ->add('hourly_send_limit', IntegerType::class, ['required' => false, 'label' => 'Maximum messages per hour', 'help' => 'Safety ceiling: WhatsApp 50; Instagram/Facebook 20.', 'constraints' => [new Positive()]])
+            ->add('recipient_daily_limit', IntegerType::class, ['required' => false, 'label' => 'Maximum messages per recipient per 24 hours', 'help' => 'Between 1 and 3. This prevents repeated campaign contact.', 'constraints' => [new Positive()]])
+            ->add('recipient_cooldown_seconds', IntegerType::class, ['required' => false, 'label' => 'Minimum seconds between messages to one recipient', 'help' => 'Minimum: WhatsApp 60 seconds; Instagram/Facebook 300 seconds.', 'constraints' => [new Positive()]])
             ->add('is_default', CheckboxType::class, ['required' => false, 'label' => 'Default asset for this channel']);
     }
 

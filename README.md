@@ -45,7 +45,7 @@ Campaign actions queue messages by default. Permanent validation, consent, and D
 
 ## Safe initial sending limits
 
-Every outbound path (campaigns, queue, UI, and MCP) is checked immediately before it calls Meta. WhatsApp starts at 250 messages per asset/24h, 50/hour, 3 per recipient/24h, and a 60-second recipient cooldown. Instagram starts at 50 messages per asset/24h, 20/hour, 3 per recipient/24h, and a 5-minute recipient cooldown. Limits may be lowered per asset but cannot be raised beyond these conservative defaults in this release. WhatsApp free-form content is blocked outside the 24-hour customer-service window; an approved template is required. Meta's account tier, quality controls, recipient consent, DNC, and API limits still apply and may be stricter.
+Every outbound path (campaigns, queue, UI, and MCP) is checked immediately before it calls Meta. WhatsApp starts at 250 messages per asset/24h, 50/hour, 3 per recipient/24h, and a 60-second recipient cooldown. Instagram starts at 50 messages per asset/24h, 20/hour, 3 per recipient/24h, and a 5-minute recipient cooldown. These values are visible and may be lowered on each asset's create/edit screen; they cannot be raised beyond the conservative safety ceilings in this release. WhatsApp free-form content is blocked outside the 24-hour customer-service window; an approved template is required. Meta's account tier, quality controls, recipient consent, DNC, and API limits still apply and may be stricter.
 
 ## Legacy migration
 

@@ -110,6 +110,10 @@ final class ConnectionController extends AbstractController
             'username' => $asset->getUsername(), 'phone_number' => $asset->getPhoneNumber(),
             'default_region' => $settings['default_region'] ?? 'BR', 'contact_match_field' => $settings['contact_match_field'] ?? null,
             'require_opt_in' => $settings['require_opt_in'] ?? true, 'is_default' => $asset->isDefault(),
+            'daily_send_limit' => $settings['daily_send_limit'] ?? null,
+            'hourly_send_limit' => $settings['hourly_send_limit'] ?? null,
+            'recipient_daily_limit' => $settings['recipient_daily_limit'] ?? null,
+            'recipient_cooldown_seconds' => $settings['recipient_cooldown_seconds'] ?? null,
         ]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
