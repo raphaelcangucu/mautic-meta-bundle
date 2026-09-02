@@ -69,11 +69,27 @@ final class OutboundQueue
             $this->entityManager->persist($job);
             $this->entityManager->flush();
             try {
-                $messageLogId = $this->executor->execute($job);
+                $result = $this->executor->execute($job);
+                $messageLogId = $result instanceof \MauticPlugin\MauticMetaBundle\Entity\MetaMessage ? (int) $result->getId() : $result->logId;
+                if ('whatsapp_' === substr($job->getOperation(), 0, 9)) {
+                    if (!$result instanceof \MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSendResult || '' === trim($result->messageId)) {
+                        throw new \RuntimeException('WhatsApp delivery cannot complete without response.messages[0].id.');
+                    }
+                    $persisted = $this->connection->fetchAssociative('SELECT external_id,status FROM meta_messages WHERE id=:id', ['id' => $result->logId]);
+                    if (!is_array($persisted) || trim((string) ($persisted['external_id'] ?? '')) !== $result->messageId) {
+                        $this->connection->update('meta_messages', [
+                            'external_id' => $result->messageId,
+                            'status' => $result->status,
+                            'response' => json_encode($result->response, JSON_THROW_ON_ERROR),
+                            'date_modified' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                        ], ['id' => $result->logId]);
+                    }
+                }
                 $job->setStatus('completed')->setCompletedAt(new \DateTimeImmutable())->setLockedAt(null)->setLastError(null)->setMessageLogId($messageLogId);
                 ++$succeeded;
             } catch (\Throwable $exception) {
-                $job->setLastError($exception->getMessage())->setLockedAt(null);
+                $error = $exception instanceof MetaGraphApiException ? $exception->details() : ['message' => $exception->getMessage()];
+                $job->setLastError(json_encode($error, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))->setLockedAt(null);
                 $permanentGraphFailure = $exception instanceof MetaGraphApiException
                     && !$exception->isRetryable();
                 if (

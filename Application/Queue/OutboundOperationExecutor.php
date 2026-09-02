@@ -6,6 +6,7 @@ namespace MauticPlugin\MauticMetaBundle\Application\Queue;
 
 use MauticPlugin\MauticMetaBundle\Application\Instagram\InstagramService;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSender;
+use MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSendResult;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 
@@ -16,7 +17,7 @@ class OutboundOperationExecutor
         private InstagramService $instagram
     ) {}
 
-    public function execute(MetaOutboundJob $job): int
+    public function execute(MetaOutboundJob $job): MetaMessage|WhatsAppSendResult
     {
         $payload = $job->getPayload();
         $recipient = (string) ($payload['recipient'] ?? '');
@@ -32,6 +33,6 @@ class OutboundOperationExecutor
             default => throw new \InvalidArgumentException('Unsupported Meta queue operation.'),
         };
 
-        return $result instanceof MetaMessage ? (int) $result->getId() : $result->logId;
+        return $result;
     }
 }

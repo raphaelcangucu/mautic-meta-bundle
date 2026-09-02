@@ -11,5 +11,7 @@ final readonly class WhatsAppSendResult
         public string $messageId,
         public string $status,
         public string $recipient,
+        public array $response = [],
+        public int $httpStatus = 200,
     ) {}
 }

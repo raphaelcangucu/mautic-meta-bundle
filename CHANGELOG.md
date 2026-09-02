@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0 - 2026-09-02
+
+- Require and persist `response.messages[0].id` before completing any WhatsApp job.
+- Persist sanitized Meta response/error diagnostics, message status, and wamid.
+- Validate all configured Instagram and WhatsApp assets, approved welcome template, app/WABA subscription, webhook subscription, phone registration, and channel permissions.
+- Rotate the exposed landing consent secret and verify the signed webhook callback end to end.
+
 ## 0.9.0 - 2026-09-02
 
 - Add channel, asset, consent, and free-text identity filters.

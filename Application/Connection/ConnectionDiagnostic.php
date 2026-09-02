@@ -7,6 +7,7 @@ namespace MauticPlugin\MauticMetaBundle\Application\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use MauticPlugin\MauticMetaBundle\Application\Instagram\InstagramAccountResolver;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
+use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
@@ -18,6 +19,8 @@ final class ConnectionDiagnostic
         'instagram_manage_messages',
         'instagram_manage_comments',
         'pages_show_list',
+        'whatsapp_business_management',
+        'whatsapp_business_messaging',
     ];
 
     public function __construct(
@@ -96,10 +99,19 @@ final class ConnectionDiagnostic
 
         $granted = array_values(array_unique(array_filter($granted)));
 
+        $required = [];
+        foreach ($connection->getAssets() as $asset) {
+            $required = array_merge($required, match ($asset->getType()) {
+                AssetType::InstagramAccount, AssetType::FacebookPage => array_slice(self::REQUIRED_PERMISSIONS, 0, 4),
+                AssetType::WhatsAppBusinessAccount, AssetType::WhatsAppPhoneNumber => array_slice(self::REQUIRED_PERMISSIONS, 4),
+            });
+        }
+        $required = array_values(array_unique($required));
+
         return [
-            'required' => self::REQUIRED_PERMISSIONS,
+            'required' => $required,
             'granted'  => $granted,
-            'missing'  => array_values(array_diff(self::REQUIRED_PERMISSIONS, $granted)),
+            'missing'  => array_values(array_diff($required, $granted)),
         ];
     }
 
@@ -113,21 +125,20 @@ final class ConnectionDiagnostic
         $configuredCount = 0;
 
         foreach ($connection->getAssets() as $asset) {
-            if (AssetType::InstagramAccount !== $asset->getType()) {
-                continue;
-            }
-
             ++$configuredCount;
 
             try {
-                $canonicalId = $this->instagramResolver?->resolve($asset) ?? $asset->getExternalId();
-                $profile = $this->graph->get($connection, $canonicalId, ['fields' => 'id']);
+                $verification = match ($asset->getType()) {
+                    AssetType::InstagramAccount => $this->verifyInstagram($connection, $asset),
+                    AssetType::WhatsAppBusinessAccount => $this->verifyWaba($connection, $asset),
+                    AssetType::WhatsAppPhoneNumber => $this->verifyPhoneNumber($connection, $asset),
+                    AssetType::FacebookPage => $this->graph->get($connection, $asset->getExternalId(), ['fields' => 'id,name']),
+                };
                 $accessible[] = [
                     'id'         => $asset->getId(),
                     'externalId' => $asset->getExternalId(),
                     'type'       => $asset->getType()->value,
-                    'canonicalId' => $canonicalId,
-                    'verifiedId' => $profile['id'] ?? null,
+                    'verification' => $verification,
                 ];
             } catch (\Throwable $exception) {
                 $missing[] = [
@@ -145,6 +156,52 @@ final class ConnectionDiagnostic
             'configuredCount' => $configuredCount,
             'accessible'      => $accessible,
             'missing'         => $missing,
+        ];
+    }
+
+    private function verifyInstagram(MetaConnection $connection, MetaAsset $asset): array
+    {
+        $canonicalId = $this->instagramResolver?->resolve($asset) ?? $asset->getExternalId();
+        $profile = $this->graph->get($connection, $canonicalId, ['fields' => 'id']);
+
+        return ['canonicalId' => $canonicalId, 'verifiedId' => $profile['id'] ?? null];
+    }
+
+    private function verifyWaba(MetaConnection $connection, MetaAsset $asset): array
+    {
+        $profile = $this->graph->get($connection, $asset->getExternalId(), ['fields' => 'id,name']);
+        $templates = $this->graph->get($connection, $asset->getExternalId().'/message_templates', ['name' => 'boas_vindas_reports', 'fields' => 'id,name,status,language', 'limit' => 20]);
+        $welcome = array_values(array_filter((array) ($templates['data'] ?? []), static fn ($row): bool => is_array($row) && 'boas_vindas_reports' === ($row['name'] ?? null) && 'APPROVED' === ($row['status'] ?? null)));
+        $subscribed = $this->graph->get($connection, $asset->getExternalId().'/subscribed_apps', ['fields' => 'id,name']);
+        $apps = array_values(array_filter((array) ($subscribed['data'] ?? []), 'is_array'));
+        $appSubscribed = [] !== array_filter($apps, static fn (array $row): bool => (string) ($row['id'] ?? '') === $connection->getAppId());
+        if ([] === $welcome || !$appSubscribed) {
+            throw new \DomainException([] === $welcome ? 'Approved boas_vindas_reports template was not found in this WABA.' : 'The Meta app is not listed in WABA subscribed_apps.');
+        }
+
+        $subscriptions = $this->graph->get($connection, $connection->getAppId().'/subscriptions', ['fields' => 'object,callback_url,active_fields']);
+        $whatsAppWebhook = array_values(array_filter((array) ($subscriptions['data'] ?? []), static fn ($row): bool => is_array($row) && 'whatsapp_business_account' === ($row['object'] ?? null)));
+        if ([] === $whatsAppWebhook) {
+            throw new \DomainException('The app has no whatsapp_business_account webhook subscription.');
+        }
+
+        return ['verifiedId' => $profile['id'] ?? null, 'name' => $profile['name'] ?? null, 'welcomeTemplate' => $welcome[0], 'subscribedApp' => true, 'webhookSubscription' => $whatsAppWebhook[0]];
+    }
+
+    private function verifyPhoneNumber(MetaConnection $connection, MetaAsset $asset): array
+    {
+        $profile = $this->graph->get($connection, $asset->getExternalId(), ['fields' => 'id,display_phone_number,verified_name,quality_rating,code_verification_status,platform_type']);
+        if ('' === trim((string) ($profile['display_phone_number'] ?? ''))) {
+            throw new \DomainException('WhatsApp phone-number asset did not return display_phone_number.');
+        }
+
+        return [
+            'verifiedId' => $profile['id'] ?? null,
+            'configuredNumber' => $asset->getPhoneNumber(),
+            'displayPhoneNumber' => $profile['display_phone_number'],
+            'registrationStatus' => $profile['code_verification_status'] ?? null,
+            'qualityRating' => $profile['quality_rating'] ?? null,
+            'platformType' => $profile['platform_type'] ?? null,
         ];
     }
 }

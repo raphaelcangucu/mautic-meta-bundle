@@ -105,17 +105,28 @@ final class WhatsAppSender
         $this->entityManager->flush();
         try {
             $response = $this->graph->post($asset->getConnection(), $asset->getExternalId().'/messages', $payload);
-            $messageId = (string) ($response['messages'][0]['id'] ?? '');
+            $messageId = trim((string) ($response['messages'][0]['id'] ?? ''));
+            $messageStatus = (string) ($response['messages'][0]['message_status'] ?? 'accepted');
+            $sanitizedResponse = ['http_status' => 200, 'message_status' => $messageStatus, 'wamid' => $messageId, 'meta' => $response];
             if ('' === $messageId) {
-                throw new \RuntimeException('Meta response did not contain a WhatsApp message ID.');
+                $log->setResponse($sanitizedResponse)->setStatus('failed')->setError('Meta response did not contain response.messages[0].id.');
+                $this->entityManager->flush();
+                throw new \RuntimeException('Meta response did not contain response.messages[0].id.');
             }
-            $log->setExternalId($messageId)->setResponse($response)->setStatus('accepted');
+            $log->setExternalId($messageId)->setResponse($sanitizedResponse)->setStatus($messageStatus);
             $this->entityManager->flush();
             $this->conversations?->record($log);
             $this->adapters?->dispatch($log, 'message.sent');
 
-            return new WhatsAppSendResult((int) $log->getId(), $messageId, 'accepted', $recipient);
+            return new WhatsAppSendResult((int) $log->getId(), $messageId, $messageStatus, $recipient, $sanitizedResponse);
         } catch (\Throwable $exception) {
+            if ($exception instanceof \MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException) {
+                $details = $exception->details();
+                $log->setResponse(['http_status' => $details['http_status'], 'error' => [
+                    'message' => $details['message'], 'type' => $details['type'], 'code' => $details['code'],
+                    'error_subcode' => $details['error_subcode'], 'fbtrace_id' => $details['fbtrace_id'],
+                ]]);
+            }
             $log->setError($exception->getMessage())->setStatus('failed');
             $this->entityManager->flush();
             throw $exception;
