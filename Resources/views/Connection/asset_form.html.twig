@@ -3,6 +3,6 @@
 {% block headerTitle %}{{ asset is defined ? 'Edit Meta asset' : 'mautic.meta.asset.new'|trans({'%connection%': connection.name}) }}{% endblock %}
 {% block content %}
 <div class="panel panel-default ma-md"><div class="panel-body">
-    {{ form_start(form) }}{{ form_widget(form) }}<button type="submit" class="btn btn-primary">{{ 'mautic.core.form.save'|trans }}</button>{{ form_end(form) }}
+    {{ form_start(form) }}{{ form_widget(form) }}<button type="submit" name="submit" value="1" class="btn btn-primary">{{ 'mautic.core.form.save'|trans }}</button>{{ form_end(form) }}
 </div></div>
 {% endblock %}

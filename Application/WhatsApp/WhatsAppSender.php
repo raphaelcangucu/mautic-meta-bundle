@@ -6,7 +6,9 @@ namespace MauticPlugin\MauticMetaBundle\Application\WhatsApp;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Mautic\LeadBundle\Entity\Lead;
+use MauticPlugin\MauticMetaBundle\Application\Adapter\WebhookAdapterDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
+use MauticPlugin\MauticMetaBundle\Application\Conversation\ConversationManager;
 use MauticPlugin\MauticMetaBundle\Application\Safety\OutboundPolicy;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
@@ -21,7 +23,10 @@ final class WhatsAppSender
         private PhoneNormalizer $phones,
         private IdentityManager $identities,
         private ?OutboundPolicy $outboundPolicy = null,
-    ) {}
+        private ?WebhookAdapterDispatcher $adapters = null,
+        private ?ConversationManager $conversations = null,
+    ) {
+    }
 
     public function sendText(MetaAsset $phoneAsset, string $recipient, string $text, bool $previewUrl = false, ?Lead $contact = null): WhatsAppSendResult
     {
@@ -93,6 +98,8 @@ final class WhatsAppSender
             }
             $log->setExternalId($messageId)->setResponse($response)->setStatus('accepted');
             $this->entityManager->flush();
+            $this->conversations?->record($log);
+            $this->adapters?->dispatch($log, 'message.sent');
 
             return new WhatsAppSendResult((int) $log->getId(), $messageId, 'accepted', $recipient);
         } catch (\Throwable $exception) {

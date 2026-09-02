@@ -19,6 +19,7 @@ class MetaOutboundJob extends CommonEntity
     private MetaAsset $asset;
     private ?Lead $contact = null;
     private string $operation = '';
+    private ?string $idempotencyKey = null;
     /**
      * @var array<string, mixed>
      */
@@ -45,12 +46,14 @@ class MetaOutboundJob extends CommonEntity
     {
         $builder = new ClassMetadataBuilder($metadata);
         $builder->setTable('meta_outbound_jobs')->setCustomRepositoryClass(MetaOutboundJobRepository::class)
+            ->addUniqueConstraint(['idempotency_key'], 'meta_job_idempotency')
             ->addIndex(['status', 'available_at'], 'meta_job_due')
             ->addIndex(['contact_id', 'date_added'], 'meta_job_contact');
         $builder->addId();
         $builder->createManyToOne('asset', MetaAsset::class)->addJoinColumn('asset_id', 'id', false, false, 'CASCADE')->build();
         $builder->createManyToOne('contact', Lead::class)->addJoinColumn('contact_id', 'id', true, false, 'SET NULL')->build();
         $builder->addField('operation', Types::STRING, ['length' => 64]);
+        $builder->addNullableField('idempotencyKey', Types::STRING, 'idempotency_key');
         $builder->addField('payload', Types::JSON);
         $builder->addField('status', Types::STRING, ['length' => 24]);
         $builder->addField('attempts', Types::INTEGER);
@@ -64,38 +67,187 @@ class MetaOutboundJob extends CommonEntity
         $builder->addNullableField('dateModified', Types::DATETIME_MUTABLE, 'date_modified');
     }
 
-    public function getId(): ?int { return $this->id; }
-    public function getAsset(): MetaAsset { return $this->asset; }
-    public function setAsset(MetaAsset $value): self { $this->asset = $value; return $this->touch(); }
-    public function getContact(): ?Lead { return $this->contact; }
-    public function setContact(?Lead $value): self { $this->contact = $value; return $this->touch(); }
-    public function getOperation(): string { return $this->operation; }
-    public function setOperation(string $value): self { $this->operation = $value; return $this->touch(); }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getAsset(): MetaAsset
+    {
+        return $this->asset;
+    }
+
+    public function setAsset(MetaAsset $value): self
+    {
+        $this->asset = $value;
+
+        return $this->touch();
+    }
+
+    public function getContact(): ?Lead
+    {
+        return $this->contact;
+    }
+
+    public function setContact(?Lead $value): self
+    {
+        $this->contact = $value;
+
+        return $this->touch();
+    }
+
+    public function getOperation(): string
+    {
+        return $this->operation;
+    }
+
+    public function setOperation(string $value): self
+    {
+        $this->operation = $value;
+
+        return $this->touch();
+    }
+
+    public function getIdempotencyKey(): ?string
+    {
+        return $this->idempotencyKey;
+    }
+
+    public function setIdempotencyKey(?string $value): self
+    {
+        $this->idempotencyKey = $value;
+
+        return $this->touch();
+    }
+
     /**
      * @return array<string, mixed>
      */
-    public function getPayload(): array { return $this->payload; }
+    public function getPayload(): array
+    {
+        return $this->payload;
+    }
+
     /**
      * @param array<string, mixed> $value
      */
-    public function setPayload(array $value): self { $this->payload = $value; return $this->touch(); }
-    public function getStatus(): string { return $this->status; }
-    public function setStatus(string $value): self { $this->status = $value; return $this->touch(); }
-    public function getAttempts(): int { return $this->attempts; }
-    public function setAttempts(int $value): self { $this->attempts = $value; return $this->touch(); }
-    public function getMaxAttempts(): int { return $this->maxAttempts; }
-    public function setMaxAttempts(int $value): self { $this->maxAttempts = max(1, $value); return $this->touch(); }
-    public function getAvailableAt(): ?\DateTimeInterface { return $this->availableAt; }
-    public function setAvailableAt(?\DateTimeInterface $value): self { $this->availableAt = $value; return $this->touch(); }
-    public function getLockedAt(): ?\DateTimeInterface { return $this->lockedAt; }
-    public function setLockedAt(?\DateTimeInterface $value): self { $this->lockedAt = $value; return $this->touch(); }
-    public function getCompletedAt(): ?\DateTimeInterface { return $this->completedAt; }
-    public function setCompletedAt(?\DateTimeInterface $value): self { $this->completedAt = $value; return $this->touch(); }
-    public function getLastError(): ?string { return $this->lastError; }
-    public function setLastError(?string $value): self { $this->lastError = $value; return $this->touch(); }
-    public function getMessageLogId(): ?int { return $this->messageLogId; }
-    public function setMessageLogId(?int $value): self { $this->messageLogId = $value; return $this->touch(); }
-    public function getDateAdded(): \DateTimeInterface { return $this->dateAdded; }
-    public function getDateModified(): ?\DateTimeInterface { return $this->dateModified; }
-    private function touch(): self { $this->dateModified = new \DateTime(); return $this; }
+    public function setPayload(array $value): self
+    {
+        $this->payload = $value;
+
+        return $this->touch();
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $value): self
+    {
+        $this->status = $value;
+
+        return $this->touch();
+    }
+
+    public function getAttempts(): int
+    {
+        return $this->attempts;
+    }
+
+    public function setAttempts(int $value): self
+    {
+        $this->attempts = $value;
+
+        return $this->touch();
+    }
+
+    public function getMaxAttempts(): int
+    {
+        return $this->maxAttempts;
+    }
+
+    public function setMaxAttempts(int $value): self
+    {
+        $this->maxAttempts = max(1, $value);
+
+        return $this->touch();
+    }
+
+    public function getAvailableAt(): ?\DateTimeInterface
+    {
+        return $this->availableAt;
+    }
+
+    public function setAvailableAt(?\DateTimeInterface $value): self
+    {
+        $this->availableAt = $value;
+
+        return $this->touch();
+    }
+
+    public function getLockedAt(): ?\DateTimeInterface
+    {
+        return $this->lockedAt;
+    }
+
+    public function setLockedAt(?\DateTimeInterface $value): self
+    {
+        $this->lockedAt = $value;
+
+        return $this->touch();
+    }
+
+    public function getCompletedAt(): ?\DateTimeInterface
+    {
+        return $this->completedAt;
+    }
+
+    public function setCompletedAt(?\DateTimeInterface $value): self
+    {
+        $this->completedAt = $value;
+
+        return $this->touch();
+    }
+
+    public function getLastError(): ?string
+    {
+        return $this->lastError;
+    }
+
+    public function setLastError(?string $value): self
+    {
+        $this->lastError = $value;
+
+        return $this->touch();
+    }
+
+    public function getMessageLogId(): ?int
+    {
+        return $this->messageLogId;
+    }
+
+    public function setMessageLogId(?int $value): self
+    {
+        $this->messageLogId = $value;
+
+        return $this->touch();
+    }
+
+    public function getDateAdded(): \DateTimeInterface
+    {
+        return $this->dateAdded;
+    }
+
+    public function getDateModified(): ?\DateTimeInterface
+    {
+        return $this->dateModified;
+    }
+
+    private function touch(): self
+    {
+        $this->dateModified = new \DateTime();
+
+        return $this;
+    }
 }

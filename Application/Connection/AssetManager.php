@@ -15,7 +15,8 @@ final class AssetManager
     public function __construct(
         private EntityManagerInterface $entityManager,
         private MetaAssetRepository $repository,
-    ) {}
+    ) {
+    }
 
     public function create(MetaConnection $connection, array $data): MetaAsset
     {
@@ -69,7 +70,10 @@ final class AssetManager
         }
         if (true === ($data['is_default'] ?? false)) {
             foreach ($this->repository->findBy(['connection' => $asset->getConnection(), 'type' => $type->value]) as $existing) {
-                if ($existing->getId() !== $asset->getId()) { $existing->setIsDefault(false); }
+                if ($existing->getId() !== $asset->getId()) {
+                    $existing->setIsDefault(false);
+                }
+                $this->entityManager->persist($existing);
             }
         }
         $asset->setName($name)
@@ -84,6 +88,7 @@ final class AssetManager
                 'require_opt_in' => (bool) ($data['require_opt_in'] ?? true),
                 ...$this->safetySettings($type, $data),
             ]);
+        $this->entityManager->persist($asset);
         $this->entityManager->flush();
 
         return $asset;

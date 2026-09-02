@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use MauticPlugin\MauticMetaBundle\Controller\AdapterReplyController;
 use MauticPlugin\MauticMetaBundle\Controller\ConnectionController;
+use MauticPlugin\MauticMetaBundle\Controller\ConversationController;
 use MauticPlugin\MauticMetaBundle\Controller\DashboardController;
 use MauticPlugin\MauticMetaBundle\Controller\IdentityController;
 use MauticPlugin\MauticMetaBundle\Controller\OperationsController;
@@ -12,7 +14,7 @@ use MauticPlugin\MauticMetaBundle\Controller\WebhookController;
 return [
     'name'        => 'Mautic Meta Integration',
     'description' => 'Multi-account WhatsApp and Instagram integration using the official Meta Graph API.',
-    'version'     => '0.5.0',
+    'version'     => '0.6.0',
     'author'      => 'Raphael Cangucu',
     'routes'      => [
         'main' => [
@@ -33,20 +35,25 @@ return [
             'mautic_meta_identities' => ['path' => '/meta/identities', 'controller' => IdentityController::class.'::index'],
             'mautic_meta_identity_update' => ['path' => '/meta/identities/{identityId}', 'controller' => IdentityController::class.'::update', 'method' => 'POST'],
             'mautic_meta_operations' => ['path' => '/meta/operations', 'controller' => OperationsController::class.'::index'],
+            'mautic_meta_conversations' => ['path' => '/meta/inbox', 'controller' => ConversationController::class.'::index', 'defaults' => ['conversationId' => null]],
+            'mautic_meta_conversation_view' => ['path' => '/meta/inbox/{conversationId}', 'controller' => ConversationController::class.'::index', 'method' => 'GET'],
+            'mautic_meta_conversation_reply' => ['path' => '/meta/inbox/{conversationId}/reply', 'controller' => ConversationController::class.'::reply', 'method' => 'POST'],
+            'mautic_meta_conversation_status' => ['path' => '/meta/inbox/{conversationId}/status', 'controller' => ConversationController::class.'::status', 'method' => 'POST'],
             'mautic_meta_job_retry' => ['path' => '/meta/operations/jobs/{jobId}/retry', 'controller' => OperationsController::class.'::retryJob', 'method' => 'POST'],
             'mautic_meta_job_cancel' => ['path' => '/meta/operations/jobs/{jobId}/cancel', 'controller' => OperationsController::class.'::cancelJob', 'method' => 'POST'],
             'mautic_meta_webhook_replay' => ['path' => '/meta/operations/webhooks/{eventId}/replay', 'controller' => OperationsController::class.'::replayWebhook', 'method' => 'POST'],
+            'mautic_meta_adapter_retry' => ['path' => '/meta/operations/adapters/{deliveryId}/retry', 'controller' => OperationsController::class.'::retryAdapter', 'method' => 'POST'],
         ],
         'public' => [
             'mautic_meta_webhook' => ['path' => '/meta/webhook/{connectionId}', 'controller' => WebhookController::class.'::handle', 'method' => ['GET', 'POST']],
+            'mautic_meta_adapter_reply' => ['path' => '/meta/adapters/{connectionId}/{adapterName}/messages', 'controller' => AdapterReplyController::class.'::reply', 'method' => 'POST'],
         ],
     ],
     'menu' => [
         'main' => [
             'mautic.meta.menu' => [
-                'route'    => 'mautic_meta_dashboard',
-                'access'   => 'meta:connections:view',
-                'parent'   => 'mautic.core.channels',
+                'id'       => 'mautic_meta_root',
+                'access'   => ['meta:connections:view', 'meta:templates:view', 'meta:messages:view'],
                 'iconClass'=> 'ri-meta-fill',
                 'priority' => 20,
                 'children' => [
@@ -54,6 +61,7 @@ return [
                     'mautic.meta.menu.connections' => ['route' => 'mautic_meta_connections', 'access' => 'meta:connections:view'],
                     'mautic.meta.menu.templates' => ['route' => 'mautic_meta_templates', 'access' => 'meta:templates:view'],
                     'mautic.meta.menu.identities' => ['route' => 'mautic_meta_identities', 'access' => 'meta:messages:view'],
+                    'mautic.meta.menu.inbox' => ['route' => 'mautic_meta_conversations', 'access' => 'meta:messages:view'],
                     'Meta operations' => ['route' => 'mautic_meta_operations', 'access' => 'meta:messages:view'],
                 ],
             ],

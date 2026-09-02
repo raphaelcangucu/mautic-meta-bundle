@@ -10,8 +10,9 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 final class QueueManager
 {
     public function __construct(
-        private EntityManagerInterface $entityManager
-    ) {}
+        private EntityManagerInterface $entityManager,
+    ) {
+    }
 
     public function retry(MetaOutboundJob $job): void
     {
@@ -19,6 +20,7 @@ final class QueueManager
             throw new \DomainException('Only failed or cancelled jobs can be retried manually.');
         }
         $job->setStatus('pending')->setAttempts(0)->setAvailableAt(new \DateTimeImmutable())->setLockedAt(null)->setCompletedAt(null)->setLastError(null);
+        $this->entityManager->persist($job);
         $this->entityManager->flush();
     }
 
@@ -28,6 +30,7 @@ final class QueueManager
             throw new \DomainException('Only pending jobs can be cancelled.');
         }
         $job->setStatus('cancelled')->setAvailableAt(null)->setLockedAt(null);
+        $this->entityManager->persist($job);
         $this->entityManager->flush();
     }
 }

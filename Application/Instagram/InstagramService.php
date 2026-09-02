@@ -6,7 +6,9 @@ namespace MauticPlugin\MauticMetaBundle\Application\Instagram;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Mautic\LeadBundle\Entity\Lead;
+use MauticPlugin\MauticMetaBundle\Application\Adapter\WebhookAdapterDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
+use MauticPlugin\MauticMetaBundle\Application\Conversation\ConversationManager;
 use MauticPlugin\MauticMetaBundle\Application\Safety\OutboundPolicy;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
@@ -20,7 +22,10 @@ final class InstagramService
         private EntityManagerInterface $entityManager,
         private IdentityManager $identities,
         private ?OutboundPolicy $outboundPolicy = null,
-    ) {}
+        private ?WebhookAdapterDispatcher $adapters = null,
+        private ?ConversationManager $conversations = null,
+    ) {
+    }
 
     public function profile(MetaAsset $account): array
     {
@@ -115,6 +120,8 @@ final class InstagramService
             }
             $log->setExternalId($messageId)->setResponse($response)->setStatus('accepted');
             $this->entityManager->flush();
+            $this->conversations?->record($log);
+            $this->adapters?->dispatch($log, 'message.sent');
 
             return $log;
         } catch (\Throwable $exception) {

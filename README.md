@@ -32,6 +32,38 @@ Multi-account integration between Mautic 7 and the official Meta Graph API. What
 - Conservative automatic inbound contact matching: configurable exact-field lookup and unique normalized phone fallback for WhatsApp.
 - A migration command for the legacy single-account `MauticWhatsAppBundle`.
 - Optional MCP integration with dedicated read, send, and administration tools.
+- Multiple signed omnichannel webhook adapters per Meta connection, filtered by event and channel.
+- Native WhatsApp/Instagram conversation inbox with history, unread state, replies, and workflow status.
+
+## Omnichannel webhook adapters
+
+Edit a Meta connection and add one or more adapters as JSON:
+
+```json
+[
+  {
+    "name": "Omnichannel",
+    "url": "https://inbox.example.com/webhooks/mautic-meta",
+    "secret": "replace-with-a-long-random-secret",
+    "enabled": true,
+    "allowReplies": true,
+    "events": ["message.received", "message.sent", "message.delivered", "message.read", "message.failed"],
+    "channels": ["whatsapp", "instagram"],
+    "timeout": 5,
+    "maxAttempts": 5
+  }
+]
+```
+
+Adapter names must be unique inside a connection. Secrets are encrypted at rest and rendered back as `***`. Deliveries include a stable event ID, timestamp, and `X-Mautic-Meta-Signature` computed as `sha256=HMAC_SHA256(timestamp + "." + rawBody, secret)`. One failing destination never blocks Meta webhook processing or another destination.
+
+When `allowReplies` is enabled, the adapter can enqueue a reply at:
+
+```text
+POST /meta/adapters/{connectionId}/{urlEncodedAdapterName}/messages
+```
+
+The request body must contain `conversationId`, `text`, and an `idempotencyKey`. Sign the exact raw JSON body with the same timestamp/signature headers used for outbound events. Timestamps older than five minutes are refused, and repeated idempotency keys return the original queue job.
 
 ## Queue worker
 
@@ -39,9 +71,14 @@ Run the worker every minute. Multiple invocations are safe because it uses a dat
 
 ```bash
 php bin/console mautic:meta:queue:process --limit=100 --env=prod
+php bin/console mautic:meta:adapters:process --limit=100 --env=prod
 ```
 
 Campaign actions queue messages by default. Permanent validation, consent, and DNC failures are not retried; rate-limit and server failures use exponential backoff.
+
+## Conversation inbox
+
+Open **Meta > Meta inbox** to read WhatsApp and Instagram conversations, filter by channel/status, mark a thread as open, pending, resolved, or archived, and queue a reply. Incoming messages reopen the conversation and increase its unread count; opening the thread marks it as read.
 
 ## Safe initial sending limits
 

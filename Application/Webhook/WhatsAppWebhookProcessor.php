@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace MauticPlugin\MauticMetaBundle\Application\Webhook;
 
 use Doctrine\ORM\EntityManagerInterface;
+use MauticPlugin\MauticMetaBundle\Application\Adapter\WebhookAdapterDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Automation\CampaignMessageDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Contact\ContactMatcher;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
+use MauticPlugin\MauticMetaBundle\Application\Conversation\ConversationManager;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\ConsentKeywordMatcher;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
@@ -26,7 +28,10 @@ final class WhatsAppWebhookProcessor
         private ContactMatcher $contactMatcher,
         private ConsentKeywordMatcher $keywords,
         private CampaignMessageDispatcher $campaigns,
-    ) {}
+        private WebhookAdapterDispatcher $adapters,
+        private ConversationManager $conversations,
+    ) {
+    }
 
     public function process(array $payload): array
     {
@@ -49,8 +54,12 @@ final class WhatsAppWebhookProcessor
             $identity = $this->identities->registerInteraction($asset, $sender, $profileName ?: null, $this->contactMatcher->match($asset, $sender));
             if ('text' === $type) {
                 $keyword = $this->keywords->match((string) ($message['text']['body'] ?? ''));
-                if ('opt_in' === $keyword) { $this->identities->optIn($identity, 'whatsapp_keyword'); }
-                if ('opt_out' === $keyword) { $this->identities->optOut($identity, 'whatsapp_keyword'); }
+                if ('opt_in' === $keyword) {
+                    $this->identities->optIn($identity, 'whatsapp_keyword');
+                }
+                if ('opt_out' === $keyword) {
+                    $this->identities->optOut($identity, 'whatsapp_keyword');
+                }
             }
             $log = (new MetaMessage())
                 ->setAsset($asset)
@@ -84,7 +93,13 @@ final class WhatsAppWebhookProcessor
         if ($received + $updated > 0) {
             $this->entityManager->flush();
         }
-        foreach ($campaignMessages as $message) { $this->campaigns->dispatch($message); }
+        foreach ($campaignMessages as $message) {
+            $this->conversations->record($message);
+            $this->campaigns->dispatch($message);
+            $this->adapters->dispatch($message, 'inbound' === $message->getDirection() ? 'message.received' : match ($message->getStatus()) {
+                'delivered' => 'message.delivered', 'read' => 'message.read', 'failed' => 'message.failed', default => 'message.sent'
+            });
+        }
 
         return compact('received', 'updated', 'ignored');
     }

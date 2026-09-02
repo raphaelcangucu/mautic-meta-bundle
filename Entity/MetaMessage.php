@@ -18,6 +18,7 @@ class MetaMessage extends CommonEntity
     private $id;
     private MetaAsset $asset;
     private ?Lead $contact = null;
+    private ?MetaConversation $conversation = null;
     private ?string $externalId = null;
     private string $channel = '';
     private string $direction = 'outbound';
@@ -54,6 +55,7 @@ class MetaMessage extends CommonEntity
         $builder->addId();
         $builder->createManyToOne('asset', MetaAsset::class)->addJoinColumn('asset_id', 'id', false, false, 'CASCADE')->build();
         $builder->createManyToOne('contact', Lead::class)->addJoinColumn('contact_id', 'id', true, false, 'SET NULL')->build();
+        $builder->createManyToOne('conversation', MetaConversation::class)->addJoinColumn('conversation_id', 'id', true, false, 'SET NULL')->build();
         $builder->addNullableField('externalId', Types::STRING, 'external_id');
         $builder->addField('channel', Types::STRING, ['length' => 32]);
         $builder->addField('direction', Types::STRING, ['length' => 16]);
@@ -67,41 +69,175 @@ class MetaMessage extends CommonEntity
         $builder->addNullableField('dateModified', Types::DATETIME_MUTABLE, 'date_modified');
     }
 
-    public function getId(): ?int { return $this->id; }
-    public function getAsset(): MetaAsset { return $this->asset; }
-    public function setAsset(MetaAsset $value): self { $this->asset = $value; return $this; }
-    public function getContact(): ?Lead { return $this->contact; }
-    public function setContact(?Lead $value): self { $this->contact = $value; return $this; }
-    public function getExternalId(): ?string { return $this->externalId; }
-    public function setExternalId(?string $value): self { $this->externalId = $value; return $this; }
-    public function getChannel(): string { return $this->channel; }
-    public function setChannel(string $value): self { $this->channel = $value; return $this; }
-    public function getDirection(): string { return $this->direction; }
-    public function setDirection(string $value): self { $this->direction = $value; return $this; }
-    public function getMessageType(): string { return $this->messageType; }
-    public function setMessageType(string $value): self { $this->messageType = $value; return $this; }
-    public function getRecipient(): string { return $this->recipient; }
-    public function setRecipient(string $value): self { $this->recipient = $value; return $this; }
-    public function getStatus(): string { return $this->status; }
-    public function setStatus(string $value): self { $this->status = $value; $this->dateModified = new \DateTime(); return $this; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getAsset(): MetaAsset
+    {
+        return $this->asset;
+    }
+
+    public function setAsset(MetaAsset $value): self
+    {
+        $this->asset = $value;
+
+        return $this;
+    }
+
+    public function getContact(): ?Lead
+    {
+        return $this->contact;
+    }
+
+    public function setContact(?Lead $value): self
+    {
+        $this->contact = $value;
+
+        return $this;
+    }
+
+    public function getConversation(): ?MetaConversation
+    {
+        return $this->conversation;
+    }
+
+    public function setConversation(?MetaConversation $value): self
+    {
+        $this->conversation = $value;
+
+        return $this;
+    }
+
+    public function getExternalId(): ?string
+    {
+        return $this->externalId;
+    }
+
+    public function setExternalId(?string $value): self
+    {
+        $this->externalId = $value;
+
+        return $this;
+    }
+
+    public function getChannel(): string
+    {
+        return $this->channel;
+    }
+
+    public function setChannel(string $value): self
+    {
+        $this->channel = $value;
+
+        return $this;
+    }
+
+    public function getDirection(): string
+    {
+        return $this->direction;
+    }
+
+    public function setDirection(string $value): self
+    {
+        $this->direction = $value;
+
+        return $this;
+    }
+
+    public function getMessageType(): string
+    {
+        return $this->messageType;
+    }
+
+    public function setMessageType(string $value): self
+    {
+        $this->messageType = $value;
+
+        return $this;
+    }
+
+    public function getRecipient(): string
+    {
+        return $this->recipient;
+    }
+
+    public function setRecipient(string $value): self
+    {
+        $this->recipient = $value;
+
+        return $this;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $value): self
+    {
+        $this->status = $value;
+        $this->dateModified = new \DateTime();
+
+        return $this;
+    }
+
     /**
      * @return array<string, mixed>
      */
-    public function getPayload(): array { return $this->payload; }
+    public function getPayload(): array
+    {
+        return $this->payload;
+    }
+
     /**
      * @param array<string, mixed> $value
      */
-    public function setPayload(array $value): self { $this->payload = $value; return $this; }
+    public function setPayload(array $value): self
+    {
+        $this->payload = $value;
+
+        return $this;
+    }
+
     /**
      * @return array<string, mixed>|null
      */
-    public function getResponse(): ?array { return $this->response; }
+    public function getResponse(): ?array
+    {
+        return $this->response;
+    }
+
     /**
      * @param array<string, mixed>|null $value
      */
-    public function setResponse(?array $value): self { $this->response = $value; return $this; }
-    public function getError(): ?string { return $this->error; }
-    public function setError(?string $value): self { $this->error = $value; return $this; }
-    public function getDateAdded(): \DateTimeInterface { return $this->dateAdded; }
-    public function getDateModified(): ?\DateTimeInterface { return $this->dateModified; }
+    public function setResponse(?array $value): self
+    {
+        $this->response = $value;
+
+        return $this;
+    }
+
+    public function getError(): ?string
+    {
+        return $this->error;
+    }
+
+    public function setError(?string $value): self
+    {
+        $this->error = $value;
+
+        return $this;
+    }
+
+    public function getDateAdded(): \DateTimeInterface
+    {
+        return $this->dateAdded;
+    }
+
+    public function getDateModified(): ?\DateTimeInterface
+    {
+        return $this->dateModified;
+    }
 }

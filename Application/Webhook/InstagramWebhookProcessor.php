@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace MauticPlugin\MauticMetaBundle\Application\Webhook;
 
 use Doctrine\ORM\EntityManagerInterface;
+use MauticPlugin\MauticMetaBundle\Application\Adapter\WebhookAdapterDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Automation\CampaignMessageDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Contact\ContactMatcher;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
+use MauticPlugin\MauticMetaBundle\Application\Conversation\ConversationManager;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository;
@@ -24,7 +26,10 @@ final class InstagramWebhookProcessor
         private IdentityManager $identities,
         private ContactMatcher $contactMatcher,
         private CampaignMessageDispatcher $campaigns,
-    ) {}
+        private WebhookAdapterDispatcher $adapters,
+        private ConversationManager $conversations,
+    ) {
+    }
 
     public function process(array $payload): array
     {
@@ -52,7 +57,11 @@ final class InstagramWebhookProcessor
         if ($created > 0) {
             $this->entityManager->flush();
         }
-        foreach ($createdMessages as $message) { $this->campaigns->dispatch($message); }
+        foreach ($createdMessages as $message) {
+            $this->conversations->record($message);
+            $this->campaigns->dispatch($message);
+            $this->adapters->dispatch($message, 'message.received');
+        }
 
         return compact('created', 'ignored');
     }

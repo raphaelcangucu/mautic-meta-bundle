@@ -1,0 +1,125 @@
+{% extends '@MauticCore/Default/content.html.twig' %}
+
+{% block mauticContent %}meta{% endblock %}
+{% block headerTitle %}{{ 'mautic.meta.menu.inbox'|trans }}{% endblock %}
+
+{% block content %}
+<div class="row ma-md">
+    <div class="col-md-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <form method="get">
+                    <select name="channel">
+                        <option value="">All channels</option>
+                        <option value="whatsapp" {{ channelFilter == 'whatsapp' ? 'selected' }}>WhatsApp</option>
+                        <option value="instagram" {{ channelFilter == 'instagram' ? 'selected' }}>Instagram</option>
+                    </select>
+                    <select name="status">
+                        <option value="">All statuses</option>
+                        {% for state in ['open', 'pending', 'resolved', 'archived'] %}
+                            <option value="{{ state }}" {{ statusFilter == state ? 'selected' }}>
+                                {{ state }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-default btn-xs">Filter</button>
+                </form>
+            </div>
+
+            <div class="list-group">
+                {% for conversation in conversations %}
+                    <a
+                        class="list-group-item {{ selected and selected.id == conversation.id ? 'active' }}"
+                        href="{{ path('mautic_meta_conversation_view', {conversationId: conversation.id}) }}"
+                        data-toggle="ajax"
+                    >
+                        <strong>{{ conversation.contact ? conversation.contact.name : conversation.recipient }}</strong><br>
+                        <small>
+                            {{ conversation.channel }} · {{ conversation.asset.name }} · {{ conversation.status }} ·
+                            {{ conversation.lastMessageAt|date('Y-m-d H:i') }}
+                        </small>
+                        {% if conversation.unreadCount %}
+                            <span class="badge">{{ conversation.unreadCount }}</span>
+                        {% endif %}
+                    </a>
+                {% else %}
+                    <div class="list-group-item text-muted">No conversations yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        {% if selected %}
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <strong>{{ selected.contact ? selected.contact.name : selected.recipient }}</strong>
+                    — {{ selected.channel }}
+                    <span class="label label-default">{{ selected.status }}</span>
+
+                    <form
+                        class="pull-right"
+                        method="post"
+                        action="{{ path('mautic_meta_conversation_status', {conversationId: selected.id}) }}"
+                    >
+                        <input
+                            type="hidden"
+                            name="_token"
+                            value="{{ csrf_token('meta_conversation_status_' ~ selected.id) }}"
+                        >
+                        <select name="status">
+                            {% for state in ['open', 'pending', 'resolved', 'archived'] %}
+                                <option value="{{ state }}" {{ selected.status == state ? 'selected' }}>
+                                    {{ state }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-default btn-xs">Update</button>
+                    </form>
+                </div>
+
+                <div class="panel-body" style="max-height: 520px; overflow: auto">
+                    {% for message in messages %}
+                        <div class="well well-sm {{ message.direction == 'outbound' ? 'text-right' }}">
+                            <small>
+                                {{ message.direction }} · {{ message.messageType }} ·
+                                {{ message.dateAdded|date('Y-m-d H:i:s') }} · {{ message.status }}
+                            </small>
+                            <div>{{ message.payload|json_encode }}</div>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No messages.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="panel-footer">
+                    <form
+                        method="post"
+                        action="{{ path('mautic_meta_conversation_reply', {conversationId: selected.id}) }}"
+                    >
+                        <input
+                            type="hidden"
+                            name="_token"
+                            value="{{ csrf_token('meta_conversation_reply_' ~ selected.id) }}"
+                        >
+                        <div class="input-group">
+                            <textarea
+                                class="form-control"
+                                name="text"
+                                required
+                                rows="2"
+                                placeholder="Write a reply"
+                            ></textarea>
+                            <span class="input-group-btn">
+                                <button class="btn btn-primary" type="submit">Send</button>
+                            </span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-info">Select a conversation.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

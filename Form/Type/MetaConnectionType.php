@@ -6,6 +6,7 @@ namespace MauticPlugin\MauticMetaBundle\Form\Type;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -34,6 +35,15 @@ final class MetaConnectionType extends AbstractType
             ->add('graph_version', TextType::class, [
                 'label' => 'Graph API version', 'data' => $options['data']['graph_version'] ?? 'v26.0',
                 'constraints' => [new NotBlank(), new Regex('/^v\d+\.\d+$/')], 'attr' => ['class' => 'form-control'],
+            ])
+            ->add('webhook_adapters_json', TextareaType::class, [
+                'required' => false,
+                'label'    => 'Omnichannel webhook adapters (JSON)',
+                'help'     => 'One or more destinations. Each item accepts name, url, secret, enabled, events, channels, and timeout.',
+                'attr'     => [
+                    'rows'        => 12,
+                    'placeholder' => '[{"name":"Inbox","url":"https://...","secret":"...","enabled":true,"events":["message.received","message.sent","message.delivered","message.read","message.failed"],"channels":["whatsapp","instagram"]}]',
+                ],
             ]);
     }
 

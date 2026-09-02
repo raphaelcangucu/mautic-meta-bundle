@@ -9,8 +9,9 @@ use Mautic\CoreBundle\Helper\EncryptionHelper;
 final class CredentialVault
 {
     public function __construct(
-        private EncryptionHelper $encryption
-    ) {}
+        private EncryptionHelper $encryption,
+    ) {
+    }
 
     public function seal(string $secret): string
     {
