@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 - 2026-09-02
+
+- Persist the connection `active`/`error` status and full diagnostic result.
+- Verify the required Instagram permissions and access to every configured Instagram profile.
+- Preserve Graph API error details and log method, safe endpoint, HTTP status, Meta code, and error subcode without tokens.
+
 ## 0.6.0 - 2026-09-02
 
 - Add a native WhatsApp and Instagram conversation inbox with replies and status management.

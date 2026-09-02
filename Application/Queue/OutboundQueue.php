@@ -10,6 +10,7 @@ use Mautic\LeadBundle\Entity\Lead;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
+use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
 
 final class OutboundQueue
 {
@@ -73,7 +74,14 @@ final class OutboundQueue
                 ++$succeeded;
             } catch (\Throwable $exception) {
                 $job->setLastError($exception->getMessage())->setLockedAt(null);
-                if ($exception instanceof \InvalidArgumentException || $exception instanceof \DomainException || $job->getAttempts() >= $job->getMaxAttempts()) {
+                $permanentGraphFailure = $exception instanceof MetaGraphApiException
+                    && !$exception->isRetryable();
+                if (
+                    $exception instanceof \InvalidArgumentException
+                    || $exception instanceof \DomainException
+                    || $permanentGraphFailure
+                    || $job->getAttempts() >= $job->getMaxAttempts()
+                ) {
                     $job->setStatus('failed');
                     ++$failed;
                 } else {

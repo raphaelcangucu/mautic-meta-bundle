@@ -6,6 +6,7 @@ namespace MauticPlugin\MauticMetaBundle\Infrastructure;
 
 use MauticPlugin\MauticMetaBundle\Application\Connection\ConnectionCredentialProvider;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class MetaGraphClient implements MetaGraphClientInterface
@@ -14,7 +15,9 @@ final class MetaGraphClient implements MetaGraphClientInterface
         private HttpClientInterface $httpClient,
         private ConnectionCredentialProvider $credentials,
         private ConnectionRateLimiter $rateLimiter,
-    ) {}
+        private ?LoggerInterface $logger = null,
+    ) {
+    }
 
     public function get(MetaConnection $connection, string $path, array $query = []): array
     {
@@ -43,11 +46,50 @@ final class MetaGraphClient implements MetaGraphClientInterface
         $data = $response->toArray(false);
         $status = $response->getStatusCode();
         if ($status >= 400) {
-            $message = (string) ($data['error']['message'] ?? 'Meta Graph API request failed.');
-            $code = (string) ($data['error']['code'] ?? $status);
-            $detail = sprintf('%s (Meta code %s, HTTP %d)', $message, $code, $status);
-            if (429 !== $status && $status < 500) { throw new \InvalidArgumentException($detail); }
-            throw new \RuntimeException($detail);
+            $error = is_array($data['error'] ?? null)
+                ? $this->withoutTokens($data['error'])
+                : ['message' => 'Meta Graph API request failed.'];
+            $endpoint = $this->safeEndpoint($url);
+
+            $this->logger?->error('Meta Graph API request failed.', [
+                'method'        => $method,
+                'endpoint'      => $endpoint,
+                'http_status'   => $status,
+                'code'          => $error['code'] ?? null,
+                'error_subcode' => $error['error_subcode'] ?? null,
+                'type'          => $error['type'] ?? null,
+                'message'       => $error['message'] ?? null,
+                'fbtrace_id'    => $error['fbtrace_id'] ?? null,
+            ]);
+
+            throw new MetaGraphApiException($method, $endpoint, $status, $error);
+        }
+
+        return $data;
+    }
+
+    private function safeEndpoint(string $url): string
+    {
+        return preg_replace(
+            '/([?&](?:access_token|token)=)[^&]*/i',
+            '$1[REDACTED]',
+            $url,
+        ) ?? $url;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
+     */
+    private function withoutTokens(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (in_array(strtolower((string) $key), ['token', 'access_token'], true)) {
+                $data[$key] = '[REDACTED]';
+            } elseif (is_array($value)) {
+                $data[$key] = $this->withoutTokens($value);
+            }
         }
 
         return $data;

@@ -20,6 +20,7 @@ return function (ContainerConfigurator $configurator): void {
     $excludes = MauticCoreExtension::DEFAULT_EXCLUDES;
     $excludes[] = 'Application/Connection/ConnectionCredentials.php';
     $excludes[] = 'Application/WhatsApp/WhatsAppSendResult.php';
+    $excludes[] = 'Infrastructure/MetaGraphApiException.php';
 
     $services->load('MauticPlugin\\MauticMetaBundle\\', '../')
         ->exclude('../{'.implode(',', $excludes).'}');

@@ -34,6 +34,7 @@ Multi-account integration between Mautic 7 and the official Meta Graph API. What
 - Optional MCP integration with dedicated read, send, and administration tools.
 - Multiple signed omnichannel webhook adapters per Meta connection, filtered by event and channel.
 - Native WhatsApp/Instagram conversation inbox with history, unread state, replies, and workflow status.
+- Connection diagnostics verify Instagram permissions and access to every configured Instagram profile.
 
 ## Omnichannel webhook adapters
 

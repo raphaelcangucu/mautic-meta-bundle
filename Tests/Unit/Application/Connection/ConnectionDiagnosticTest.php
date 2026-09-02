@@ -15,8 +15,30 @@ final class ConnectionDiagnosticTest extends TestCase
     public function testHealthyGraphRequestActivatesConnectionAndStoresDiagnostic(): void
     {
         $graph = $this->createMock(MetaGraphClientInterface::class);
-        $graph->expects(self::once())->method('get')->with(self::isInstanceOf(MetaConnection::class), 'me', ['fields' => 'id,name'])->willReturn(['id' => 'user-1', 'name' => 'Meta User']);
+        $graph->expects(self::exactly(2))
+            ->method('get')
+            ->willReturnCallback(static function (MetaConnection $connection, string $path): array {
+                if ('me' === $path) {
+                    return ['id' => 'user-1', 'name' => 'Meta User'];
+                }
+
+                self::assertSame('me/permissions', $path);
+
+                return ['data' => array_map(
+                    static fn (string $permission): array => [
+                        'permission' => $permission,
+                        'status'     => 'granted',
+                    ],
+                    [
+                        'instagram_basic',
+                        'instagram_manage_messages',
+                        'instagram_manage_comments',
+                        'pages_show_list',
+                    ],
+                )];
+            });
         $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('persist');
         $entityManager->expects(self::once())->method('flush');
         $connection = (new MetaConnection(4))->setAppId('app-1')->setStatus('pending');
 
@@ -25,6 +47,7 @@ final class ConnectionDiagnosticTest extends TestCase
         self::assertTrue($result['ok']);
         self::assertSame('active', $connection->getStatus());
         self::assertSame('user-1', $connection->getSettings()['last_diagnostic']['metaUser']['id']);
+        self::assertSame([], $result['permissions']['missing']);
     }
 
     public function testFailureMarksConnectionAsErrorWithoutLeakingCredential(): void
