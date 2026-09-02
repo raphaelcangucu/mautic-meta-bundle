@@ -80,7 +80,12 @@ final class TrustedApiWaitlistConsentService
         $lastError = null;
         foreach ($candidates as $field => $candidate) {
             try {
-                $digits = $this->phones->normalize($candidate, (string) ($asset->getSettings()['default_region'] ?? 'BR'));
+                $settings = $asset->getSettings();
+                $digits = $this->phones->normalizeImported(
+                    $candidate,
+                    (string) ($settings['trusted_import_default_region'] ?? $settings['default_region'] ?? 'BR'),
+                    (bool) ($settings['trusted_import_convert_legacy_br_mobile'] ?? true),
+                );
                 $phoneField = $field;
                 break;
             } catch (\Throwable $exception) {
@@ -112,7 +117,12 @@ final class TrustedApiWaitlistConsentService
             if ($existingAudit->getContact()->getId() !== $contact->getId()) {
                 return $this->result($contact, 'conflict', 'external_submission_id belongs to another contact.', '+'.$digits, $phoneField, $dryRun, $identity, $existingAudit);
             }
-            return $this->result($contact, 'already_registered', null, '+'.$digits, $phoneField, $dryRun, $identity, $existingAudit);
+            if ($existingAudit->getPhoneNumber() === '+'.$digits) {
+                return $this->result($contact, 'already_registered', null, '+'.$digits, $phoneField, $dryRun, $identity, $existingAudit);
+            }
+            if (!$identity instanceof MetaContactIdentity) {
+                $identity = $existingAudit->getIdentity();
+            }
         }
         if ($dryRun) {
             return $this->result($contact, $identity instanceof MetaContactIdentity ? 'updated' : 'created', null, '+'.$digits, $phoneField, true, $identity);
@@ -125,18 +135,21 @@ final class TrustedApiWaitlistConsentService
         try {
             return $this->entityManager->wrapInTransaction(function () use ($contact, $asset, $basis, $attestedAt, $attestedBy, $syncJobId, $submissionId, $digits, $phoneField, $identity): array {
                 $storedIdentity = $identity ?? (new MetaContactIdentity())->setAsset($asset)->setExternalId($digits);
-                $storedIdentity->setContact($contact)
+                $storedIdentity->setExternalId($digits)
+                    ->setContact($contact)
                     ->setPhoneNumber('+'.$digits)
                     ->setConsentStatus(ConsentStatus::OptedIn)
                     ->setConsentSource('mautic_api_waitlist')
                     ->setConsentedAt($attestedAt);
                 $this->entityManager->persist($storedIdentity);
 
-                $audit = (new MetaWhatsAppConsent())
+                $audit = $this->consents->findSubmission($asset, $submissionId) ?? (new MetaWhatsAppConsent())
                     ->setAsset($asset)
                     ->setIdentity($storedIdentity)
                     ->setContact($contact)
-                    ->setExternalSubmissionId($submissionId)
+                    ->setExternalSubmissionId($submissionId);
+                $audit
+                    ->setIdentity($storedIdentity)
                     ->setPhoneNumber('+'.$digits)
                     ->setConsentAt($attestedAt)
                     ->setEvidenceHash(hash('sha256', $asset->getId().':'.$contact->getId().':'.$submissionId.':'.$basis))

@@ -46,6 +46,8 @@ final class AssetManager
             ->setIsPublished(true)
             ->setSettings([
                 'default_region' => strtoupper((string) ($data['default_region'] ?? 'BR')),
+                'trusted_import_default_region' => strtoupper((string) ($data['trusted_import_default_region'] ?? $data['default_region'] ?? 'BR')),
+                'trusted_import_convert_legacy_br_mobile' => (bool) ($data['trusted_import_convert_legacy_br_mobile'] ?? true),
                 'contact_match_field' => $this->nullable($data['contact_match_field'] ?? null),
                 'require_opt_in' => (bool) ($data['require_opt_in'] ?? true),
                 ...$this->safetySettings($type, $data),
@@ -76,6 +78,7 @@ final class AssetManager
                 $this->entityManager->persist($existing);
             }
         }
+        $existingSettings = $asset->getSettings();
         $asset->setName($name)
             ->setExternalId($externalId)
             ->setType($type)
@@ -84,6 +87,8 @@ final class AssetManager
             ->setIsDefault((bool) ($data['is_default'] ?? false))
             ->setSettings([
                 'default_region' => strtoupper((string) ($data['default_region'] ?? 'BR')),
+                'trusted_import_default_region' => strtoupper((string) ($data['trusted_import_default_region'] ?? $existingSettings['trusted_import_default_region'] ?? $data['default_region'] ?? 'BR')),
+                'trusted_import_convert_legacy_br_mobile' => (bool) ($data['trusted_import_convert_legacy_br_mobile'] ?? $existingSettings['trusted_import_convert_legacy_br_mobile'] ?? true),
                 'contact_match_field' => $this->nullable($data['contact_match_field'] ?? null),
                 'require_opt_in' => (bool) ($data['require_opt_in'] ?? true),
                 ...$this->safetySettings($type, $data),

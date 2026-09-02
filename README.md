@@ -87,6 +87,8 @@ php artisan mautic:whatsapp-consent:backfill --source=lp_football --consent-vers
 php artisan mautic:whatsapp-consent:backfill --source=lp_football --consent-version=football_weekly_report_v1 --checkpoint=0 --confirm
 ```
 
+For trusted API/Waitlist synchronization, configure **Waitlist/API phone region** on the WhatsApp asset independently from the asset's own region. Brazilian imports may also enable the conservative legacy-mobile conversion, which only adds the ninth digit to a DDD plus eight-digit mobile candidate; short, ambiguous, fixed-line, and otherwise invalid values remain rejected for review.
+
 ## Omnichannel webhook adapters
 
 Edit a Meta connection and add one or more adapters as JSON:

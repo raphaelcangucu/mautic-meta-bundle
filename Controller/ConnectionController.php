@@ -111,7 +111,7 @@ final class ConnectionController extends AbstractController
         if (!$connection instanceof MetaConnection) {
             throw $this->createNotFoundException();
         }
-        $form = $this->createForm(MetaAssetType::class, ['default_region' => 'BR', 'require_opt_in' => true]);
+        $form = $this->createForm(MetaAssetType::class, ['default_region' => 'BR', 'trusted_import_default_region' => 'BR', 'trusted_import_convert_legacy_br_mobile' => true, 'require_opt_in' => true]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             $manager->create($connection, $form->getData());
@@ -136,7 +136,7 @@ final class ConnectionController extends AbstractController
         $form = $this->createForm(MetaAssetType::class, [
             'name' => $asset->getName(), 'type' => $asset->getType()->value, 'external_id' => $asset->getExternalId(),
             'username' => $asset->getUsername(), 'phone_number' => $asset->getPhoneNumber(),
-            'default_region' => $settings['default_region'] ?? 'BR', 'contact_match_field' => $settings['contact_match_field'] ?? null,
+            'default_region' => $settings['default_region'] ?? 'BR', 'trusted_import_default_region' => $settings['trusted_import_default_region'] ?? $settings['default_region'] ?? 'BR', 'trusted_import_convert_legacy_br_mobile' => $settings['trusted_import_convert_legacy_br_mobile'] ?? true, 'contact_match_field' => $settings['contact_match_field'] ?? null,
             'require_opt_in' => $settings['require_opt_in'] ?? true, 'is_default' => $asset->isDefault(),
             'daily_send_limit' => $settings['daily_send_limit'] ?? null,
             'hourly_send_limit' => $settings['hourly_send_limit'] ?? null,

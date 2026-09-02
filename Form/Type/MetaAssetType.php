@@ -31,6 +31,15 @@ final class MetaAssetType extends AbstractType
             ->add('username', TextType::class, ['required' => false, 'label' => 'Instagram username'])
             ->add('phone_number', TextType::class, ['required' => false, 'label' => 'Display phone number'])
             ->add('default_region', TextType::class, ['required' => false, 'label' => 'Default phone region'])
+            ->add('trusted_import_default_region', TextType::class, [
+                'required' => false,
+                'label' => 'Waitlist/API phone region',
+                'help' => 'Region used only for national phone numbers imported by the trusted API, for example BR.',
+            ])
+            ->add('trusted_import_convert_legacy_br_mobile', CheckboxType::class, [
+                'required' => false,
+                'label' => 'Convert legacy Brazilian mobile numbers by adding the ninth digit',
+            ])
             ->add('contact_match_field', TextType::class, ['required' => false, 'label' => 'Contact field for exact identity matching', 'help' => 'Optional field alias containing the WhatsApp number or Instagram user ID. WhatsApp falls back to a unique phone/mobile match.'])
             ->add('require_opt_in', CheckboxType::class, ['required' => false, 'label' => 'Require explicit WhatsApp opt-in before sending'])
             ->add('daily_send_limit', IntegerType::class, ['required' => false, 'label' => 'Maximum messages per 24 hours', 'help' => 'May be lowered. Safety ceiling: WhatsApp 250; Instagram/Facebook 50.', 'constraints' => [new Positive()]])

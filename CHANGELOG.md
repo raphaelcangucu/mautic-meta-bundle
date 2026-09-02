@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.1 - 2026-09-02
+
+- Separate the trusted Waitlist/API import region from the Meta asset phone region.
+- Normalize national imported numbers using the configured region before consent-sync validation.
+- Optionally convert legacy Brazilian eight-digit mobile numbers by adding the mandated ninth digit.
+- Safely reclassify existing trusted identities as updates when their normalized number changes.
+
 ## 0.8.0 - 2026-09-02
 
 - Add authenticated Mautic contact-API origin tracking without relying on nullable creator fields.
