@@ -12,6 +12,7 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConsentSyncRun;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConsentSyncRunRepository;
+use Symfony\Bundle\SecurityBundle\Security;
 
 final class WhatsAppConsentSyncService
 {
@@ -22,6 +23,8 @@ final class WhatsAppConsentSyncService
         private MetaConsentSyncRunRepository $runs,
         private LandingConsentSourceClient $sourceClient,
         private WhatsAppConsentRegistrationService $registration,
+        private TrustedApiWaitlistConsentService $trustedWaitlist,
+        private Security $security,
     ) {
     }
 
@@ -30,6 +33,9 @@ final class WhatsAppConsentSyncService
      */
     public function preview(int $assetId, string $source, string $version, int $batchSize = 100, bool $onlyUnsynced = true): array
     {
+        if ('mautic_api_waitlist' === $source) {
+            return $this->previewMauticWaitlist($assetId, '' === $version ? 'Waitlist' : $version, $batchSize, $onlyUnsynced);
+        }
         $asset = $this->asset($assetId);
         $checkpoint = 0;
         $counts = $this->emptyCounts();
@@ -57,6 +63,40 @@ final class WhatsAppConsentSyncService
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function previewMauticWaitlist(int $assetId, string $stage = 'Waitlist', int $batchSize = 100, bool $onlyUnsynced = true): array
+    {
+        $asset = $this->asset($assetId);
+        $checkpoint = 0;
+        $counts = $this->emptyCounts();
+        $items = [];
+        $rejections = [];
+        do {
+            $page = $this->trustedWaitlist->findWaitlistPage($stage, $checkpoint, $batchSize);
+            foreach ($page['items'] as $candidate) {
+                ++$counts['analyzed'];
+                ++$counts['waitlist_analyzed'];
+                $result = $this->trustedWaitlist->register($candidate['contact'], $asset, 'admin_attested_trusted_api_import', new \DateTimeImmutable(), dryRun: true);
+                $items[] = $result + ['apiOriginPreserved' => $candidate['apiImported']];
+                $this->countWaitlistResult($counts, $rejections, $result);
+            }
+            $checkpoint = $page['nextCheckpoint'];
+        } while ($page['hasMore']);
+
+        return [
+            'status' => 'ready_to_confirm',
+            'sourceMode' => 'mautic_api_waitlist',
+            'asset' => ['id' => $assetId, 'name' => $asset->getName(), 'phone' => $asset->getPhoneNumber()],
+            'criteria' => ['sourceMode' => 'mautic_api_waitlist', 'stage' => $stage, 'batchSize' => $batchSize, 'onlyUnsynced' => $onlyUnsynced],
+            'counts' => $counts,
+            'items' => $items,
+            'rejections' => $rejections,
+            'readOnly' => true,
+        ];
+    }
+
     public function start(int $assetId, string $source, string $version, int $batchSize, bool $onlyUnsynced, string $idempotencyKey, ?User $operator = null): MetaConsentSyncRun
     {
         $existing = $this->runs->findOneBy(['idempotencyKey' => $idempotencyKey]);
@@ -64,10 +104,16 @@ final class WhatsAppConsentSyncService
             return $existing;
         }
 
+        $authenticatedUser = $this->security->getUser();
+        if (!$operator instanceof User && $authenticatedUser instanceof User) {
+            $operator = $authenticatedUser;
+        }
         $run = (new MetaConsentSyncRun())
             ->setAsset($this->asset($assetId))
             ->setOperator($operator)
-            ->setCriteria(['source' => $source, 'consentVersion' => $version, 'onlyUnsynced' => $onlyUnsynced])
+            ->setCriteria('mautic_api_waitlist' === $source
+                ? ['sourceMode' => $source, 'stage' => '' === $version ? 'Waitlist' : $version, 'onlyUnsynced' => $onlyUnsynced]
+                : ['sourceMode' => 'explicit_consent_fields', 'source' => $source, 'consentVersion' => $version, 'onlyUnsynced' => $onlyUnsynced])
             ->setBatchSize($batchSize)
             ->setCounts($this->emptyCounts())
             ->setIdempotencyKey($idempotencyKey)
@@ -98,6 +144,9 @@ final class WhatsAppConsentSyncService
                 $this->entityManager->flush();
             }
             $criteria = $run->getCriteria();
+            if ('mautic_api_waitlist' === ($criteria['sourceMode'] ?? null)) {
+                return $this->processWaitlistPage($run, $criteria);
+            }
             $page = $this->sourceClient->fetch($run->getAsset(), (string) $criteria['source'], (string) $criteria['consentVersion'], $run->getCheckpoint(), $run->getBatchSize());
             $counts = $run->getCounts() + $this->emptyCounts();
             $rejections = $run->getRejections();
@@ -116,15 +165,23 @@ final class WhatsAppConsentSyncService
                 $run->setStatus($counts['rejected'] + $counts['conflicts'] > 0 ? 'completed_with_rejections' : 'completed')
                     ->setCompletedAt(new \DateTimeImmutable());
             }
+            $this->entityManager->persist($run);
             $this->entityManager->flush();
 
             return $this->serialize($run);
         } catch (\Throwable $exception) {
-            $run->setStatus('failed');
             $rejections = $run->getRejections();
             $rejections[] = ['reason' => 'Temporary source or processing failure; the checkpoint was preserved.', 'retryable' => true];
-            $run->setRejections($rejections);
-            $this->entityManager->flush();
+            if ($this->entityManager->isOpen()) {
+                $run->setStatus('failed')->setRejections($rejections);
+                $this->entityManager->flush();
+            } else {
+                $this->connection->update('meta_consent_sync_runs', [
+                    'status' => 'failed',
+                    'rejections' => json_encode($rejections, JSON_THROW_ON_ERROR),
+                    'date_modified' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                ], ['id' => $run->getId()]);
+            }
             throw $exception;
         } finally {
             $this->connection->executeQuery('SELECT RELEASE_LOCK(:lockName)', ['lockName' => $lock]);
@@ -174,7 +231,7 @@ final class WhatsAppConsentSyncService
      */
     private function emptyCounts(): array
     {
-        return ['analyzed' => 0, 'eligible' => 0, 'created' => 0, 'updated' => 0, 'already_synced' => 0, 'missing_or_invalid_phone' => 0, 'incomplete_consent' => 0, 'opted_out' => 0, 'conflicts' => 0, 'duplicates' => 0, 'rejected' => 0];
+        return ['analyzed' => 0, 'waitlist_analyzed' => 0, 'valid_phones' => 0, 'eligible' => 0, 'identities_to_create' => 0, 'identities_existing' => 0, 'created' => 0, 'updated' => 0, 'already_synced' => 0, 'missing_phone' => 0, 'invalid_phone' => 0, 'missing_or_invalid_phone' => 0, 'incomplete_consent' => 0, 'opted_out' => 0, 'conflicts' => 0, 'duplicates' => 0, 'rejected' => 0];
     }
 
     private function countResult(array &$counts, array &$rejections, array $item, array $result, bool $onlyUnsynced): void
@@ -195,6 +252,72 @@ final class WhatsAppConsentSyncService
         ++$counts[$key];
         ++$counts['rejected'];
         $rejections[] = ['externalSubmissionId' => $item['externalSubmissionId'] ?? null, 'email' => $item['email'] ?? null, 'reason' => $message, 'status' => $status];
+    }
+
+    /**
+     * @param array<string, mixed> $criteria
+     *
+     * @return array<string, mixed>
+     */
+    private function processWaitlistPage(MetaConsentSyncRun $run, array $criteria): array
+    {
+        $page = $this->trustedWaitlist->findWaitlistPage((string) ($criteria['stage'] ?? 'Waitlist'), $run->getCheckpoint(), $run->getBatchSize());
+        $counts = $run->getCounts() + $this->emptyCounts();
+        $rejections = $run->getRejections();
+        foreach ($page['items'] as $candidate) {
+            if ('cancelled' === $run->getStatus()) {
+                break;
+            }
+            ++$counts['analyzed'];
+            ++$counts['waitlist_analyzed'];
+            $result = $this->trustedWaitlist->register(
+                $candidate['contact'],
+                $run->getAsset(),
+                'admin_attested_trusted_api_import',
+                new \DateTimeImmutable(),
+                $run->getOperator(),
+                $run->getId(),
+            );
+            $this->countWaitlistResult($counts, $rejections, $result);
+        }
+        $run->setCheckpoint($page['nextCheckpoint'])->setCounts($counts)->setRejections($rejections);
+        if (!$page['hasMore']) {
+            $run->setStatus($counts['rejected'] + $counts['conflicts'] + $counts['opted_out'] > 0 ? 'completed_with_rejections' : 'completed')
+                ->setCompletedAt(new \DateTimeImmutable());
+        }
+        $this->entityManager->persist($run);
+        $this->entityManager->flush();
+
+        return $this->serialize($run);
+    }
+
+    private function countWaitlistResult(array &$counts, array &$rejections, array $result): void
+    {
+        $status = (string) $result['status'];
+        if ('already_registered' === $status) {
+            ++$counts['already_synced'];
+            ++$counts['valid_phones'];
+            ++$counts['identities_existing'];
+            return;
+        }
+        if (in_array($status, ['created', 'updated'], true)) {
+            ++$counts['eligible'];
+            ++$counts['valid_phones'];
+            ++$counts['identities_'.('created' === $status ? 'to_create' : 'existing')];
+            ++$counts[$status];
+            return;
+        }
+        if (in_array($status, ['conflict', 'opted_out'], true) && null !== ($result['phone'] ?? null)) {
+            ++$counts['valid_phones'];
+        }
+        $counter = match ($status) {
+            'opted_out' => 'opted_out',
+            'conflict' => 'conflicts',
+            default => str_contains(strtolower((string) $result['reason']), 'no phone') ? 'missing_phone' : 'invalid_phone',
+        };
+        ++$counts[$counter];
+        ++$counts['rejected'];
+        $rejections[] = $result;
     }
 
     private function businessMatches(MetaAsset $asset, string $business): bool

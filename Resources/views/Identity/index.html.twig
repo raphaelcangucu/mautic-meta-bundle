@@ -3,12 +3,13 @@
 {% block headerTitle %}{{ 'mautic.meta.identities'|trans }}{% endblock %}
 {% block content %}
 <div class="panel panel-default ma-md"><div class="panel-heading"><h3 class="panel-title">Sincronizar contatos consentidos</h3></div><div class="panel-body">
-    <p>A análise é obrigatória e somente leitura. A sincronização usa exclusivamente a evidência individual persistida pela landing page e nunca envia mensagens.</p>
+    <p>A análise é obrigatória e somente leitura. Escolha evidência explícita ou os contatos Waitlist atestados da API confiável. Nenhuma modalidade envia mensagens.</p>
     <form method="post" action="{{ path('mautic_meta_consent_sync_preview') }}" class="row">
         <input type="hidden" name="_token" value="{{ csrf_token('meta_consent_sync_preview') }}">
         <div class="col-md-3"><label>Ativo WhatsApp</label><select name="asset_id" class="form-control" required>{% for asset in whatsappAssets %}<option value="{{ asset.id }}">{{ asset.name }} — {{ asset.phoneNumber }}</option>{% endfor %}</select></div>
-        <div class="col-md-3"><label>Origem</label><input name="source" class="form-control" value="lp_football" required></div>
-        <div class="col-md-3"><label>Versão do consentimento</label><input name="consent_version" class="form-control" value="football_weekly_report_v1" required></div>
+        <div class="col-md-3"><label>Fonte</label><select name="source_mode" class="form-control"><option value="mautic_api_waitlist">Contatos Waitlist recebidos pela API do Mautic</option><option value="explicit_consent_fields">Campos explícitos whatsapp_consent_*</option></select></div>
+        <div class="col-md-2"><label>Etapa ou segmento</label><input name="stage" class="form-control" value="Waitlist"></div>
+        <div class="col-md-2"><label>Origem/versão explícita</label><input name="source" class="form-control" value="lp_football"><input name="consent_version" class="form-control" value="football_weekly_report_v1"></div>
         <div class="col-md-2"><label>Tamanho do lote</label><input type="number" min="1" max="500" name="batch_size" class="form-control" value="100" required></div>
         <div class="col-md-1"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Analisar contatos</button></div>
     </form>
@@ -20,6 +21,7 @@
         {% if syncPreview.rejections is not empty %}<details><summary>Consultar rejeitados ({{ syncPreview.rejections|length }})</summary><pre>{{ syncPreview.rejections|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre></details>{% endif %}
         <form method="post" action="{{ path('mautic_meta_consent_sync_start') }}">
             <input type="hidden" name="_token" value="{{ csrf_token('meta_consent_sync_start') }}"><input type="hidden" name="asset_id" value="{{ syncPreview.asset.id }}"><input type="hidden" name="idempotency_key" value="ui-{{ syncPreview.asset.id }}-{{ 'now'|date('U') }}">
+            {% if syncPreview.sourceMode|default('') == 'mautic_api_waitlist' %}<div class="checkbox"><label><input type="checkbox" name="trusted_waitlist_attestation" value="1" required> Confirmo que os contatos selecionados, recebidos pela API e classificados como Waitlist, possuem consentimento válido para WhatsApp.</label></div>{% endif %}
             <button class="btn btn-success" type="submit">Confirmar sincronização</button>
         </form>
     {% endif %}

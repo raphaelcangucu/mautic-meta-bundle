@@ -41,6 +41,28 @@ Multi-account integration between Mautic 7 and the official Meta Graph API. What
 
 ## Landing WhatsApp consent
 
+Two independent consent sources are supported:
+
+- `explicit_consent_fields`: individually persisted checkbox evidence.
+- `mautic_api_waitlist`: contacts classified in the Waitlist stage or segment, backed by authenticated API-origin tracking for new contacts or an explicit administrator attestation for historical contacts.
+
+The second mode reads Mautic's own `leads`, `stages`, `lead_lists`, and `lead_lists_leads` tables. It checks `phone` and `mobile`, does not modify contact names, never clears DNC/opt-out, and never sends a message. In **Meta > Identities**, select **Contatos Waitlist recebidos pela API do Mautic**, analyze, review every counter, and explicitly accept the displayed attestation before starting.
+
+For MCP clients using the consent synchronization operations, the MetaBundle accepts the Waitlist mode through the existing compatibility fields:
+
+```json
+{
+  "assetId": 2,
+  "source": "mautic_api_waitlist",
+  "consentVersion": "Waitlist",
+  "batchSize": 100,
+  "onlyUnsynced": true,
+  "dryRun": true
+}
+```
+
+At the MetaBundle service boundary these values are persisted as `sourceMode=mautic_api_waitlist` and `stage=Waitlist`.
+
 Configure the **Landing consent evidence URL** and its HMAC secret on the Meta connection. The landing backend posts new consent events to:
 
 ```text

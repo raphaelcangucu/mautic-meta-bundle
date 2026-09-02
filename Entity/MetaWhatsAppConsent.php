@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Mautic\CoreBundle\Doctrine\Mapping\ClassMetadataBuilder;
 use Mautic\CoreBundle\Entity\CommonEntity;
 use Mautic\LeadBundle\Entity\Lead;
+use Mautic\UserBundle\Entity\User;
 
 class MetaWhatsAppConsent extends CommonEntity
 {
@@ -19,15 +20,21 @@ class MetaWhatsAppConsent extends CommonEntity
     private string $externalSubmissionId = '';
     private string $phoneNumber = '';
     private \DateTimeInterface $consentAt;
-    private string $business = '';
+    private ?string $business = null;
     private ?string $locale = null;
-    private string $purpose = '';
+    private ?string $purpose = null;
     private string $source = '';
-    private string $consentText = '';
-    private string $consentVersion = '';
+    private ?string $consentText = null;
+    private ?string $consentVersion = null;
     private ?string $pageUrl = null;
     private string $evidenceHash = '';
     private string $status = 'accepted';
+    private string $consentBasis = 'explicit_consent_fields';
+    private ?User $attestedBy = null;
+    private ?\DateTimeInterface $attestedAt = null;
+    private ?\DateTimeInterface $contactCreatedAt = null;
+    private ?int $syncJobId = null;
+    private ?string $scope = null;
     private \DateTimeInterface $dateAdded;
     private \DateTimeInterface $dateModified;
 
@@ -50,15 +57,21 @@ class MetaWhatsAppConsent extends CommonEntity
         $builder->addField('externalSubmissionId', Types::STRING, ['columnName' => 'external_submission_id', 'length' => 191]);
         $builder->addField('phoneNumber', Types::STRING, ['columnName' => 'phone_number', 'length' => 32]);
         $builder->addField('consentAt', Types::DATETIME_IMMUTABLE, ['columnName' => 'consent_at']);
-        $builder->addField('business', Types::STRING, ['length' => 191]);
+        $builder->addNullableField('business', Types::STRING);
         $builder->addNullableField('locale', Types::STRING);
-        $builder->addField('purpose', Types::STRING, ['length' => 191]);
+        $builder->addNullableField('purpose', Types::STRING);
         $builder->addField('source', Types::STRING, ['length' => 191]);
-        $builder->addField('consentText', Types::TEXT, ['columnName' => 'consent_text']);
-        $builder->addField('consentVersion', Types::STRING, ['columnName' => 'consent_version', 'length' => 191]);
+        $builder->addNullableField('consentText', Types::TEXT, 'consent_text');
+        $builder->addNullableField('consentVersion', Types::STRING, 'consent_version');
         $builder->addNullableField('pageUrl', Types::TEXT, 'page_url');
         $builder->addField('evidenceHash', Types::STRING, ['columnName' => 'evidence_hash', 'length' => 64]);
         $builder->addField('status', Types::STRING, ['length' => 32]);
+        $builder->addField('consentBasis', Types::STRING, ['columnName' => 'consent_basis', 'length' => 64]);
+        $builder->createManyToOne('attestedBy', User::class)->addJoinColumn('attested_by', 'id', true, false, 'SET NULL')->build();
+        $builder->addNullableField('attestedAt', Types::DATETIME_IMMUTABLE, 'attested_at');
+        $builder->addNullableField('contactCreatedAt', Types::DATETIME_IMMUTABLE, 'contact_created_at');
+        $builder->addNullableField('syncJobId', Types::INTEGER, 'sync_job_id');
+        $builder->addNullableField('scope', Types::STRING);
         $builder->addField('dateAdded', Types::DATETIME_IMMUTABLE, ['columnName' => 'date_added']);
         $builder->addField('dateModified', Types::DATETIME_IMMUTABLE, ['columnName' => 'date_modified']);
     }
@@ -80,6 +93,22 @@ class MetaWhatsAppConsent extends CommonEntity
     public function setEvidenceHash(string $value): self { $this->evidenceHash = $value; return $this; }
     public function getStatus(): string { return $this->status; }
     public function setStatus(string $value): self { $this->status = $value; return $this; }
+    public function getConsentBasis(): string { return $this->consentBasis; }
+    public function setConsentBasis(string $value): self { $this->consentBasis = $value; return $this; }
+    public function setAttestedBy(?User $value): self { $this->attestedBy = $value; return $this; }
+    public function setAttestedAt(?\DateTimeInterface $value): self { $this->attestedAt = $value; return $this; }
+    public function setContactCreatedAt(?\DateTimeInterface $value): self { $this->contactCreatedAt = $value; return $this; }
+    public function setSyncJobId(?int $value): self { $this->syncJobId = $value; return $this; }
+    public function setScope(?string $value): self { $this->scope = $value; return $this; }
+
+    public function setTrustedAttestation(string $source, string $basis): self
+    {
+        $this->source = $source;
+        $this->consentBasis = $basis;
+        $this->dateModified = new \DateTimeImmutable();
+
+        return $this;
+    }
 
     /**
      * @param array<string, mixed> $evidence

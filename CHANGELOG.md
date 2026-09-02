@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 - 2026-09-02
+
+- Add authenticated Mautic contact-API origin tracking without relying on nullable creator fields.
+- Automatically register API-imported Waitlist contacts against the active default WhatsApp asset.
+- Add the independent `mautic_api_waitlist` synchronization source with mandatory administrator attestation.
+- Preserve WhatsApp DNC and opt-outs, reject shared phones, and audit attestor, contact creation date, job and scope.
+- Read Waitlist membership directly from Mautic stages and segments using both phone and mobile fields.
+
 ## 0.7.0 - 2026-09-02
 
 - Add strict, idempotent and auditable WhatsApp landing consent registration with preserved evidence.

@@ -40,7 +40,10 @@ final class IdentityController extends AbstractController
     {
         $this->assertSyncAccess($request, $permissions, 'meta_consent_sync_preview');
         try {
-            $preview = $sync->preview((int) $request->request->get('asset_id'), (string) $request->request->get('source'), (string) $request->request->get('consent_version'), (int) $request->request->get('batch_size', 100));
+            $sourceMode = (string) $request->request->get('source_mode', 'explicit_consent_fields');
+            $preview = 'mautic_api_waitlist' === $sourceMode
+                ? $sync->previewMauticWaitlist((int) $request->request->get('asset_id'), (string) $request->request->get('stage', 'Waitlist'), (int) $request->request->get('batch_size', 100))
+                : $sync->preview((int) $request->request->get('asset_id'), (string) $request->request->get('source'), (string) $request->request->get('consent_version'), (int) $request->request->get('batch_size', 100));
             $request->getSession()->set('meta_consent_sync_preview', $preview);
             $this->addFlash('notice', 'Analysis completed. Review the counters before confirming synchronization.');
         } catch (\Throwable $exception) {
@@ -58,8 +61,21 @@ final class IdentityController extends AbstractController
             $this->addFlash('error', 'A matching read-only analysis is required before synchronization.');
             return $this->redirectToRoute('mautic_meta_identities');
         }
+        if ('mautic_api_waitlist' === ($preview['sourceMode'] ?? null) && '1' !== (string) $request->request->get('trusted_waitlist_attestation')) {
+            $this->addFlash('error', 'The trusted API Waitlist consent attestation must be explicitly confirmed.');
+            return $this->redirectToRoute('mautic_meta_identities');
+        }
         $user = $this->getUser();
-        $run = $sync->start((int) $preview['asset']['id'], (string) $preview['criteria']['source'], (string) $preview['criteria']['consentVersion'], (int) $preview['criteria']['batchSize'], true, (string) $request->request->get('idempotency_key'), $user instanceof User ? $user : null);
+        $waitlistMode = 'mautic_api_waitlist' === ($preview['sourceMode'] ?? null);
+        $run = $sync->start(
+            (int) $preview['asset']['id'],
+            $waitlistMode ? 'mautic_api_waitlist' : (string) $preview['criteria']['source'],
+            $waitlistMode ? (string) $preview['criteria']['stage'] : (string) $preview['criteria']['consentVersion'],
+            (int) $preview['criteria']['batchSize'],
+            true,
+            (string) $request->request->get('idempotency_key'),
+            $user instanceof User ? $user : null,
+        );
         $request->getSession()->remove('meta_consent_sync_preview');
         $this->addFlash('notice', 'Synchronization queued as run #'.$run->getId().'.');
 
