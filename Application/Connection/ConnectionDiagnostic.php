@@ -9,6 +9,8 @@ use MauticPlugin\MauticMetaBundle\Application\Instagram\InstagramAccountResolver
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
+use MauticPlugin\MauticMetaBundle\Entity\MetaWebhookEvent;
+use MauticPlugin\MauticMetaBundle\Entity\MetaWebhookEventRepository;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
 
@@ -27,6 +29,7 @@ final class ConnectionDiagnostic
         private MetaGraphClientInterface $graph,
         private EntityManagerInterface $entityManager,
         private ?InstagramAccountResolver $instagramResolver = null,
+        private ?MetaWebhookEventRepository $webhookEvents = null,
     ) {
     }
 
@@ -175,17 +178,41 @@ final class ConnectionDiagnostic
         $subscribed = $this->graph->get($connection, $asset->getExternalId().'/subscribed_apps', ['fields' => 'id,name']);
         $apps = array_values(array_filter((array) ($subscribed['data'] ?? []), 'is_array'));
         $appSubscribed = [] !== array_filter($apps, static fn (array $row): bool => (string) ($row['id'] ?? '') === $connection->getAppId());
-        if ([] === $welcome || !$appSubscribed) {
-            throw new \DomainException([] === $welcome ? 'Approved boas_vindas_reports template was not found in this WABA.' : 'The Meta app is not listed in WABA subscribed_apps.');
+        $callbackEvidence = $this->hasWabaCallbackEvidence($connection, $asset->getExternalId());
+        if ([] === $welcome || (!$appSubscribed && !$callbackEvidence)) {
+            throw new \DomainException([] === $welcome ? 'Approved boas_vindas_reports template was not found in this WABA.' : 'The Meta app is not listed in WABA subscribed_apps and no signed callback evidence exists.');
         }
 
-        $subscriptions = $this->graph->get($connection, $connection->getAppId().'/subscriptions', ['fields' => 'object,callback_url,active_fields']);
-        $whatsAppWebhook = array_values(array_filter((array) ($subscriptions['data'] ?? []), static fn ($row): bool => is_array($row) && 'whatsapp_business_account' === ($row['object'] ?? null)));
-        if ([] === $whatsAppWebhook) {
-            throw new \DomainException('The app has no whatsapp_business_account webhook subscription.');
+        $whatsAppWebhook = [];
+        if (!$callbackEvidence) {
+            $subscriptions = $this->graph->get($connection, $connection->getAppId().'/subscriptions', ['fields' => 'object,callback_url,active_fields']);
+            $whatsAppWebhook = array_values(array_filter((array) ($subscriptions['data'] ?? []), static fn ($row): bool => is_array($row) && 'whatsapp_business_account' === ($row['object'] ?? null)));
+            if ([] === $whatsAppWebhook) {
+                throw new \DomainException('The app has no whatsapp_business_account webhook subscription.');
+            }
         }
 
-        return ['verifiedId' => $profile['id'] ?? null, 'name' => $profile['name'] ?? null, 'welcomeTemplate' => $welcome[0], 'subscribedApp' => true, 'webhookSubscription' => $whatsAppWebhook[0]];
+        return ['verifiedId' => $profile['id'] ?? null, 'name' => $profile['name'] ?? null, 'welcomeTemplate' => $welcome[0], 'subscribedApp' => true, 'subscriptionEvidence' => $appSubscribed ? 'graph_api' : 'signed_callback', 'webhookSubscription' => $callbackEvidence ? ['object' => 'whatsapp_business_account', 'verifiedBy' => 'signed_callback'] : $whatsAppWebhook[0]];
+    }
+
+    private function hasWabaCallbackEvidence(MetaConnection $connection, string $wabaId): bool
+    {
+        if (!$this->webhookEvents instanceof MetaWebhookEventRepository) {
+            return false;
+        }
+
+        foreach ($this->webhookEvents->findBy(['connection' => $connection, 'objectType' => 'whatsapp_business_account'], ['receivedAt' => 'DESC'], 20) as $event) {
+            if (!$event instanceof MetaWebhookEvent) {
+                continue;
+            }
+            foreach ((array) ($event->getPayload()['entry'] ?? []) as $entry) {
+                if (is_array($entry) && $wabaId === (string) ($entry['id'] ?? '')) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function verifyPhoneNumber(MetaConnection $connection, MetaAsset $asset): array

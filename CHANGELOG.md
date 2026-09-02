@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.2 - 2026-09-02
+
+- Accept a verified signed callback from the configured WABA as runtime evidence of both app association and the WhatsApp webhook subscription when Meta's `subscribed_apps` read is empty.
+
 ## 0.10.1 - 2026-09-02
 
 - Retry webhook events left in `received` when a request stops after durable ingestion but before processing.
