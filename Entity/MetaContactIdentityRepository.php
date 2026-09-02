@@ -23,11 +23,12 @@ class MetaContactIdentityRepository extends CommonRepository
     /**
      * @return array{items: list<MetaContactIdentity>, total: int}
      */
-    public function findPage(string $search, ?int $assetId, ?string $consentStatus, int $offset, int $limit): array
+    public function findPage(string $search, ?int $assetId, ?string $channel, ?string $consentStatus, int $offset, int $limit): array
     {
         $query = $this->createQueryBuilder('mci')
             ->leftJoin('mci.asset', 'asset')->addSelect('asset')
             ->leftJoin('mci.contact', 'contact')->addSelect('contact')
+            ->andWhere('mci.archivedAt IS NULL')
             ->orderBy('mci.lastInteractionAt', 'DESC')->addOrderBy('mci.id', 'DESC');
         if ('' !== $search) {
             $query->andWhere("LOWER(mci.externalId) LIKE :search OR LOWER(COALESCE(mci.phoneNumber, '')) LIKE :search OR LOWER(COALESCE(mci.username, '')) LIKE :search OR LOWER(asset.name) LIKE :search OR LOWER(COALESCE(contact.email, '')) LIKE :search OR LOWER(CONCAT(COALESCE(contact.firstname, ''), ' ', COALESCE(contact.lastname, ''))) LIKE :search")
@@ -38,6 +39,9 @@ class MetaContactIdentityRepository extends CommonRepository
         }
         if (null !== $consentStatus) {
             $query->andWhere('mci.consentStatus = :consentStatus')->setParameter('consentStatus', $consentStatus);
+        }
+        if (null !== $channel) {
+            $query->andWhere('asset.type = :channelType')->setParameter('channelType', 'whatsapp' === $channel ? 'whatsapp_phone_number' : 'instagram_account');
         }
         $count = clone $query;
         $total = (int) $count->select('COUNT(DISTINCT mci.id)')->getQuery()->getSingleScalarResult();

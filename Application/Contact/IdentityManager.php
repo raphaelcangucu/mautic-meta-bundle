@@ -28,7 +28,7 @@ class IdentityManager
         if (null !== $contact) { $identity->setContact($contact); }
         if (null !== $username && '' !== trim($username)) { $identity->setUsername($username); }
         if (AssetType::WhatsAppPhoneNumber === $asset->getType()) { $identity->setPhoneNumber($externalId); }
-        $identity->setLastInteractionAt(new \DateTimeImmutable());
+        $identity->setArchivedAt(null)->setLastInteractionAt(new \DateTimeImmutable());
         $this->entityManager->persist($identity);
 
         return $identity;
@@ -95,5 +95,20 @@ class IdentityManager
         $identity->setContact($contact);
         $this->entityManager->persist($identity);
         $this->entityManager->flush();
+    }
+
+    /**
+     * @param list<MetaContactIdentity> $identities
+     */
+    public function archive(array $identities): void
+    {
+        $this->entityManager->wrapInTransaction(function () use ($identities): void {
+            $archivedAt = new \DateTimeImmutable();
+            foreach ($identities as $identity) {
+                $identity->setArchivedAt($archivedAt);
+                $this->entityManager->persist($identity);
+            }
+            $this->entityManager->flush();
+        });
     }
 }

@@ -27,6 +27,7 @@ class MetaContactIdentity extends CommonEntity
     private ?\DateTimeInterface $consentedAt = null;
     private ?\DateTimeInterface $optedOutAt = null;
     private ?\DateTimeInterface $lastInteractionAt = null;
+    private ?\DateTimeInterface $archivedAt = null;
     private \DateTimeInterface $dateAdded;
     private ?\DateTimeInterface $dateModified = null;
 
@@ -55,6 +56,7 @@ class MetaContactIdentity extends CommonEntity
         $builder->addNullableField('consentedAt', Types::DATETIME_IMMUTABLE, 'consented_at');
         $builder->addNullableField('optedOutAt', Types::DATETIME_IMMUTABLE, 'opted_out_at');
         $builder->addNullableField('lastInteractionAt', Types::DATETIME_IMMUTABLE, 'last_interaction_at');
+        $builder->addNullableField('archivedAt', Types::DATETIME_IMMUTABLE, 'archived_at');
         $builder->addField('dateAdded', Types::DATETIME_IMMUTABLE, ['columnName' => 'date_added']);
         $builder->addNullableField('dateModified', Types::DATETIME_MUTABLE, 'date_modified');
     }
@@ -80,6 +82,8 @@ class MetaContactIdentity extends CommonEntity
     public function setOptedOutAt(?\DateTimeInterface $value): self { $this->optedOutAt = $value; return $this->touch(); }
     public function getLastInteractionAt(): ?\DateTimeInterface { return $this->lastInteractionAt; }
     public function setLastInteractionAt(?\DateTimeInterface $value): self { $this->lastInteractionAt = $value; return $this->touch(); }
+    public function getArchivedAt(): ?\DateTimeInterface { return $this->archivedAt; }
+    public function setArchivedAt(?\DateTimeInterface $value): self { $this->archivedAt = $value; return $this->touch(); }
     public function getDateAdded(): \DateTimeInterface { return $this->dateAdded; }
     public function getDateModified(): ?\DateTimeInterface { return $this->dateModified; }
 

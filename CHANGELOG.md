@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0 - 2026-09-02
+
+- Add channel, asset, consent, and free-text identity filters.
+- Add single and bulk identity removal with confirmation and CSRF protection.
+- Archive removed identities so historical consent evidence remains intact.
+
 ## 0.8.4 - 2026-09-02
 
 - Keep the identities controller compatible with workers holding the previous non-paginated route, preventing AJAX menu failures during deployment.

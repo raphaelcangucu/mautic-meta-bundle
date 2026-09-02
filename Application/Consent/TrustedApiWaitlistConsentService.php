@@ -136,6 +136,7 @@ final class TrustedApiWaitlistConsentService
             return $this->entityManager->wrapInTransaction(function () use ($contact, $asset, $basis, $attestedAt, $attestedBy, $syncJobId, $submissionId, $digits, $phoneField, $identity): array {
                 $storedIdentity = $identity ?? (new MetaContactIdentity())->setAsset($asset)->setExternalId($digits);
                 $storedIdentity->setExternalId($digits)
+                    ->setArchivedAt(null)
                     ->setContact($contact)
                     ->setPhoneNumber('+'.$digits)
                     ->setConsentStatus(ConsentStatus::OptedIn)

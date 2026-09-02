@@ -32,8 +32,9 @@ final class IdentityController extends AbstractController
         $limit = max(5, min(100, (int) $request->getSession()->get('mautic.metaIdentities.limit', 30)));
         $search = trim((string) $request->query->get('search', ''));
         $assetId = max(0, (int) $request->query->get('asset', 0)) ?: null;
+        $channel = in_array($request->query->get('channel'), ['whatsapp', 'instagram'], true) ? (string) $request->query->get('channel') : null;
         $consent = ConsentStatus::tryFrom((string) $request->query->get('consent', ''))?->value;
-        $identityPage = $identities->findPage($search, $assetId, $consent, ($page - 1) * $limit, $limit);
+        $identityPage = $identities->findPage($search, $assetId, $channel, $consent, ($page - 1) * $limit, $limit);
         $lastPage = max(1, (int) ceil($identityPage['total'] / $limit));
         if ($page > $lastPage) {
             return $this->redirectToRoute('mautic_meta_identities', ['page' => $lastPage, 'search' => $search, 'asset' => $assetId, 'consent' => $consent]);
@@ -43,7 +44,7 @@ final class IdentityController extends AbstractController
         return $this->render('@MauticMeta/Identity/index.html.twig', [
             'identities' => $identityPage['items'],
             'identityTotal' => $identityPage['total'], 'identityPage' => $page, 'identityLimit' => $limit,
-            'identityFilters' => ['search' => $search, 'asset' => $assetId, 'consent' => $consent],
+            'identityFilters' => ['search' => $search, 'asset' => $assetId, 'channel' => $channel, 'consent' => $consent],
             'allAssets' => $allAssets,
             'whatsappAssets' => array_values(array_filter($allAssets, static fn ($asset): bool => AssetType::WhatsAppPhoneNumber === $asset->getType())),
             'syncRuns' => $runs->findBy([], ['id' => 'DESC'], 20),
@@ -142,6 +143,36 @@ final class IdentityController extends AbstractController
         $status = ConsentStatus::tryFrom((string) $request->request->get('consent_status', 'unknown')) ?? ConsentStatus::Unknown;
         $manager->changeConsent($identity, $status, 'mautic_user');
         $this->addFlash('notice', 'Meta identity updated.');
+
+        return $this->redirectToRoute('mautic_meta_identities');
+    }
+
+    public function remove(int $identityId, Request $request, CorePermissions $permissions, MetaContactIdentityRepository $identities, IdentityManager $manager): RedirectResponse
+    {
+        if (!$permissions->isGranted('meta:messages:delete') || !$this->isCsrfTokenValid('meta_identity_remove_'.$identityId, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+        $identity = $identities->find($identityId);
+        if (!$identity instanceof MetaContactIdentity) { throw $this->createNotFoundException(); }
+        $manager->archive([$identity]);
+        $this->addFlash('notice', 'Meta identity removed. Consent audit was preserved.');
+
+        return $this->redirectToRoute('mautic_meta_identities');
+    }
+
+    public function removeBatch(Request $request, CorePermissions $permissions, MetaContactIdentityRepository $identities, IdentityManager $manager): RedirectResponse
+    {
+        if (!$permissions->isGranted('meta:messages:delete') || !$this->isCsrfTokenValid('meta_identity_remove_batch', (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->request->all('ids')), static fn (int $id): bool => $id > 0)));
+        $entities = array_values(array_filter($identities->findBy(['id' => $ids]), static fn ($identity): bool => $identity instanceof MetaContactIdentity && null === $identity->getArchivedAt()));
+        if ([] === $entities) {
+            $this->addFlash('error', 'Select at least one Meta identity.');
+        } else {
+            $manager->archive($entities);
+            $this->addFlash('notice', count($entities).' Meta identities removed. Consent audits were preserved.');
+        }
 
         return $this->redirectToRoute('mautic_meta_identities');
     }
