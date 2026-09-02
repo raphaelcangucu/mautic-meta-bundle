@@ -7,8 +7,14 @@ namespace MauticPlugin\MauticMetaBundle\Controller;
 use Mautic\CoreBundle\Security\Permissions\CorePermissions;
 use Mautic\LeadBundle\Entity\Lead;
 use Mautic\LeadBundle\Model\LeadModel;
+use Mautic\UserBundle\Entity\User;
+use MauticPlugin\MauticMetaBundle\Application\Consent\WhatsAppConsentSyncService;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
+use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Domain\ConsentStatus;
+use MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository;
+use MauticPlugin\MauticMetaBundle\Entity\MetaConsentSyncRun;
+use MauticPlugin\MauticMetaBundle\Entity\MetaConsentSyncRunRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaContactIdentity;
 use MauticPlugin\MauticMetaBundle\Entity\MetaContactIdentityRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,11 +24,72 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class IdentityController extends AbstractController
 {
-    public function index(CorePermissions $permissions, MetaContactIdentityRepository $identities): Response
+    public function index(CorePermissions $permissions, MetaContactIdentityRepository $identities, MetaAssetRepository $assets, MetaConsentSyncRunRepository $runs, Request $request): Response
     {
         if (!$permissions->isGranted('meta:messages:view')) { throw $this->createAccessDeniedException(); }
 
-        return $this->render('@MauticMeta/Identity/index.html.twig', ['identities' => $identities->findBy([], ['lastInteractionAt' => 'DESC'], 250)]);
+        return $this->render('@MauticMeta/Identity/index.html.twig', [
+            'identities' => $identities->findBy([], ['lastInteractionAt' => 'DESC'], 250),
+            'whatsappAssets' => array_values(array_filter($assets->findAll(), static fn ($asset): bool => AssetType::WhatsAppPhoneNumber === $asset->getType())),
+            'syncRuns' => $runs->findBy([], ['id' => 'DESC'], 20),
+            'syncPreview' => $request->getSession()->get('meta_consent_sync_preview'),
+        ]);
+    }
+
+    public function previewSync(Request $request, CorePermissions $permissions, WhatsAppConsentSyncService $sync): RedirectResponse
+    {
+        $this->assertSyncAccess($request, $permissions, 'meta_consent_sync_preview');
+        try {
+            $preview = $sync->preview((int) $request->request->get('asset_id'), (string) $request->request->get('source'), (string) $request->request->get('consent_version'), (int) $request->request->get('batch_size', 100));
+            $request->getSession()->set('meta_consent_sync_preview', $preview);
+            $this->addFlash('notice', 'Analysis completed. Review the counters before confirming synchronization.');
+        } catch (\Throwable $exception) {
+            $this->addFlash('error', $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('mautic_meta_identities');
+    }
+
+    public function startSync(Request $request, CorePermissions $permissions, WhatsAppConsentSyncService $sync): RedirectResponse
+    {
+        $this->assertSyncAccess($request, $permissions, 'meta_consent_sync_start');
+        $preview = $request->getSession()->get('meta_consent_sync_preview');
+        if (!is_array($preview) || (int) ($preview['asset']['id'] ?? 0) !== (int) $request->request->get('asset_id')) {
+            $this->addFlash('error', 'A matching read-only analysis is required before synchronization.');
+            return $this->redirectToRoute('mautic_meta_identities');
+        }
+        $user = $this->getUser();
+        $run = $sync->start((int) $preview['asset']['id'], (string) $preview['criteria']['source'], (string) $preview['criteria']['consentVersion'], (int) $preview['criteria']['batchSize'], true, (string) $request->request->get('idempotency_key'), $user instanceof User ? $user : null);
+        $request->getSession()->remove('meta_consent_sync_preview');
+        $this->addFlash('notice', 'Synchronization queued as run #'.$run->getId().'.');
+
+        return $this->redirectToRoute('mautic_meta_identities');
+    }
+
+    public function cancelSync(int $runId, Request $request, CorePermissions $permissions, MetaConsentSyncRunRepository $runs, WhatsAppConsentSyncService $sync): RedirectResponse
+    {
+        $this->assertSyncAccess($request, $permissions, 'meta_consent_sync_cancel_'.$runId);
+        $run = $runs->find($runId);
+        if (!$run instanceof MetaConsentSyncRun) {
+            throw $this->createNotFoundException();
+        }
+        $sync->cancel($run);
+        $this->addFlash('notice', 'Synchronization cancelled safely at its last checkpoint.');
+
+        return $this->redirectToRoute('mautic_meta_identities');
+    }
+
+    public function rejections(int $runId, CorePermissions $permissions, MetaConsentSyncRunRepository $runs): Response
+    {
+        if (!$permissions->isGranted('meta:messages:view')) {
+            throw $this->createAccessDeniedException();
+        }
+        $run = $runs->find($runId);
+        if (!$run instanceof MetaConsentSyncRun) {
+            throw $this->createNotFoundException();
+        }
+
+        return $this->json(['runId' => $runId, 'rejections' => $run->getRejections()], 200, ['Content-Disposition' => 'attachment; filename="meta-consent-sync-'.$runId.'-rejections.json"']);
     }
 
     public function update(int $identityId, Request $request, CorePermissions $permissions, MetaContactIdentityRepository $identities, IdentityManager $manager, LeadModel $leads): RedirectResponse
@@ -46,5 +113,12 @@ final class IdentityController extends AbstractController
         $this->addFlash('notice', 'Meta identity updated.');
 
         return $this->redirectToRoute('mautic_meta_identities');
+    }
+
+    private function assertSyncAccess(Request $request, CorePermissions $permissions, string $csrfId): void
+    {
+        if (!$permissions->isGranted('meta:messages:edit') || !$this->isCsrfTokenValid($csrfId, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
     }
 }

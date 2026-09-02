@@ -36,6 +36,34 @@ Multi-account integration between Mautic 7 and the official Meta Graph API. What
 - Native WhatsApp/Instagram conversation inbox with history, unread state, replies, and workflow status.
 - Connection diagnostics verify Instagram permissions and access to every configured Instagram profile.
 - Business Manager Instagram asset IDs are resolved to canonical Instagram Graph IDs before profile, media, conversation, or messaging calls.
+- Individually evidenced WhatsApp landing opt-ins are registered through one idempotent service, with immutable audit records and later opt-out precedence.
+- Meta > Identities provides mandatory preview and confirmed historical synchronization directly from the persisted landing submission source.
+
+## Landing WhatsApp consent
+
+Configure the **Landing consent evidence URL** and its HMAC secret on the Meta connection. The landing backend posts new consent events to:
+
+```text
+POST /meta/consent/landing/{connectionId}/{assetId}
+X-Mautic-Meta-Timestamp: unix timestamp
+X-Mautic-Meta-Signature: sha256=hex(HMAC-SHA256(timestamp + "." + exact JSON body, secret))
+```
+
+The same connection can read historical evidence from the configured HTTPS source. In the supplied landing backend the endpoint is `GET /api/internal/mautic/whatsapp-consents`; it signs `timestamp + "\n" + RFC3986 query string`. Both directions have a five-minute replay window and never log the secret.
+
+Run these workers every minute:
+
+```bash
+php bin/console mautic:meta:consent:process --limit=100 --env=prod
+php bin/console mautic:meta:consent-sync:process --env=prod
+```
+
+Historical backfill is dry-run by default and requires persisted source/version filters:
+
+```bash
+php artisan mautic:whatsapp-consent:backfill --source=lp_football --consent-version=football_weekly_report_v1
+php artisan mautic:whatsapp-consent:backfill --source=lp_football --consent-version=football_weekly_report_v1 --checkpoint=0 --confirm
+```
 
 ## Omnichannel webhook adapters
 

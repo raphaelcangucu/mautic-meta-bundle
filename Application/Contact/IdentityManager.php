@@ -54,8 +54,17 @@ class IdentityManager
     {
         $this->assertChannelContactable($contact, 'whatsapp');
         $identity = $this->identities->findForAssetAndExternalId($asset, $externalId);
+        if ($identity instanceof MetaContactIdentity && $contact instanceof Lead && $identity->getContact()?->getId() !== $contact->getId()) {
+            throw new \DomainException('WhatsApp identity is linked to a different Mautic contact.');
+        }
         if ($identity?->getConsentStatus() === ConsentStatus::OptedOut) {
             throw new \DomainException('Contact opted out of WhatsApp messages.');
+        }
+        if (
+            $identity?->getOptedOutAt() instanceof \DateTimeInterface
+            && (!$identity->getConsentedAt() instanceof \DateTimeInterface || $identity->getOptedOutAt() >= $identity->getConsentedAt())
+        ) {
+            throw new \DomainException('A later WhatsApp opt-out remains in force.');
         }
         $requiresOptIn = (bool) ($asset->getSettings()['require_opt_in'] ?? true);
         if ($requiresOptIn && $identity?->getConsentStatus() !== ConsentStatus::OptedIn) {

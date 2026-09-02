@@ -12,7 +12,9 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
  */
 final class OutboundPolicy
 {
-    public function __construct(private Connection $connection) {}
+    public function __construct(
+        private Connection $connection
+    ) {}
 
     public function assertAllowed(MetaAsset $asset, string $channel, string $recipient, string $messageType): void
     {

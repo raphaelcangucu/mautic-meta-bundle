@@ -11,10 +11,14 @@ use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
 
 final class InstagramAccountResolver
 {
-    /** @var array<int, string> */
+    /**
+     * @var array<int, string>
+     */
     private array $resolvedIds = [];
 
-    public function __construct(private MetaGraphClientInterface $graph)
+    public function __construct(
+        private MetaGraphClientInterface $graph
+    )
     {
     }
 

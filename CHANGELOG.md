@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 - 2026-09-02
+
+- Add strict, idempotent and auditable WhatsApp landing consent registration with preserved evidence.
+- Add a signed landing capture endpoint, durable retry queue, E.164 identity upsert and opt-out precedence.
+- Add the `meta.whatsapp.register_opt_in` campaign action and approved-template send enforcement.
+- Add two-step historical consent synchronization to Meta > Identities with progress, checkpoint, cancellation and rejection reports.
+- Add an authenticated evidence-source bridge for the separately deployed landing backend.
+
 ## 0.6.2 - 2026-09-02
 
 - Resolve Business Manager Instagram asset IDs to canonical Instagram Graph IDs through linked Page relationships or `ig_user_id` metadata.

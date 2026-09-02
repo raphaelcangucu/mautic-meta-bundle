@@ -107,7 +107,9 @@ final class AssetManager
         return '' === $value ? null : $value;
     }
 
-    /** @return array<string, int|bool> */
+    /**
+     * @return array<string, int|bool>
+     */
     private function safetySettings(AssetType $type, array $data): array
     {
         $whatsApp = AssetType::WhatsAppPhoneNumber === $type;

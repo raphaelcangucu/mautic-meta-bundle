@@ -41,7 +41,7 @@ final class ConnectionController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $data = $form->getData();
             try {
-                $manager->create($data['name'], $data['app_id'], $data['app_secret'], $data['access_token'], $data['verify_token'], $data['graph_version'], (string) ($data['webhook_adapters_json'] ?? ''));
+                $manager->create($data['name'], $data['app_id'], $data['app_secret'], $data['access_token'], $data['verify_token'], $data['graph_version'], (string) ($data['webhook_adapters_json'] ?? ''), (string) ($data['consent_source_url'] ?? ''), (string) ($data['consent_source_secret'] ?? ''));
                 $this->addFlash('notice', 'Meta connection created. Add its WABA, phone numbers, or Instagram accounts next.');
 
                 return $this->redirectToRoute('mautic_meta_connections', [], Response::HTTP_SEE_OTHER);
@@ -63,7 +63,7 @@ final class ConnectionController extends AbstractController
             throw $this->createNotFoundException();
         }
         $form = $this->createForm(MetaConnectionType::class, [
-            'name' => $connection->getName(), 'app_id' => $connection->getAppId(), 'graph_version' => $connection->getGraphVersion(), 'webhook_adapters_json' => $this->adapterJson($connection),
+            'name' => $connection->getName(), 'app_id' => $connection->getAppId(), 'graph_version' => $connection->getGraphVersion(), 'webhook_adapters_json' => $this->adapterJson($connection), 'consent_source_url' => $connection->getSettings()['consent_source_url'] ?? '',
         ], ['editing' => true]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {

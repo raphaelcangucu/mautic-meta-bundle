@@ -32,6 +32,19 @@ final class MetaConnectionType extends AbstractType
             ->add('app_secret', PasswordType::class, $secret + ['label' => 'Meta App Secret'])
             ->add('access_token', PasswordType::class, $secret + ['label' => 'System User Access Token'])
             ->add('verify_token', PasswordType::class, $secret + ['label' => 'Webhook Verify Token'])
+            ->add('consent_source_url', TextType::class, [
+                'required' => false,
+                'label' => 'Landing consent evidence URL',
+                'help' => 'HTTPS endpoint that reads persisted landing submissions.',
+                'attr' => ['class' => 'form-control'],
+            ])
+            ->add('consent_source_secret', PasswordType::class, [
+                'required' => false,
+                'always_empty' => true,
+                'label' => 'Landing consent evidence secret',
+                'help' => $editing ? 'Leave blank to keep the current encrypted value.' : 'HMAC secret shared with the landing backend.',
+                'attr' => ['class' => 'form-control', 'autocomplete' => 'new-password'],
+            ])
             ->add('graph_version', TextType::class, [
                 'label' => 'Graph API version', 'data' => $options['data']['graph_version'] ?? 'v26.0',
                 'constraints' => [new NotBlank(), new Regex('/^v\d+\.\d+$/')], 'attr' => ['class' => 'form-control'],

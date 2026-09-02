@@ -2,6 +2,34 @@
 {% block mauticContent %}meta{% endblock %}
 {% block headerTitle %}{{ 'mautic.meta.identities'|trans }}{% endblock %}
 {% block content %}
+<div class="panel panel-default ma-md"><div class="panel-heading"><h3 class="panel-title">Sincronizar contatos consentidos</h3></div><div class="panel-body">
+    <p>A análise é obrigatória e somente leitura. A sincronização usa exclusivamente a evidência individual persistida pela landing page e nunca envia mensagens.</p>
+    <form method="post" action="{{ path('mautic_meta_consent_sync_preview') }}" class="row">
+        <input type="hidden" name="_token" value="{{ csrf_token('meta_consent_sync_preview') }}">
+        <div class="col-md-3"><label>Ativo WhatsApp</label><select name="asset_id" class="form-control" required>{% for asset in whatsappAssets %}<option value="{{ asset.id }}">{{ asset.name }} — {{ asset.phoneNumber }}</option>{% endfor %}</select></div>
+        <div class="col-md-3"><label>Origem</label><input name="source" class="form-control" value="lp_football" required></div>
+        <div class="col-md-3"><label>Versão do consentimento</label><input name="consent_version" class="form-control" value="football_weekly_report_v1" required></div>
+        <div class="col-md-2"><label>Tamanho do lote</label><input type="number" min="1" max="500" name="batch_size" class="form-control" value="100" required></div>
+        <div class="col-md-1"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Analisar contatos</button></div>
+    </form>
+    {% if syncPreview %}
+        <hr><h4>Pronto para confirmar — ativo {{ syncPreview.asset.name }} ({{ syncPreview.asset.phone }})</h4>
+        <div class="table-responsive"><table class="table table-bordered"><tbody>
+        {% for key, value in syncPreview.counts %}<tr><th>{{ key|replace({'_': ' '})|title }}</th><td>{{ value }}</td></tr>{% endfor %}
+        </tbody></table></div>
+        {% if syncPreview.rejections is not empty %}<details><summary>Consultar rejeitados ({{ syncPreview.rejections|length }})</summary><pre>{{ syncPreview.rejections|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre></details>{% endif %}
+        <form method="post" action="{{ path('mautic_meta_consent_sync_start') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('meta_consent_sync_start') }}"><input type="hidden" name="asset_id" value="{{ syncPreview.asset.id }}"><input type="hidden" name="idempotency_key" value="ui-{{ syncPreview.asset.id }}-{{ 'now'|date('U') }}">
+            <button class="btn btn-success" type="submit">Confirmar sincronização</button>
+        </form>
+    {% endif %}
+</div></div>
+<div class="panel panel-default ma-md"><div class="panel-heading"><h3 class="panel-title">Execuções de sincronização</h3></div><div class="panel-body"><div class="table-responsive"><table class="table table-hover">
+    <thead><tr><th>ID</th><th>Status</th><th>Ativo</th><th>Progresso</th><th>Operador</th><th>Data</th><th></th></tr></thead><tbody>
+    {% for run in syncRuns %}<tr><td>{{ run.id }}</td><td>{{ run.status|replace({'_': ' '})|title }}</td><td>{{ run.asset.name }}</td><td>{{ run.counts.analyzed|default(0) }} analisados; {{ run.counts.eligible|default(0) }} elegíveis; {{ run.counts.rejected|default(0) }} rejeitados</td><td>{{ run.operator ? run.operator.name : 'Sistema/MCP' }}</td><td>{{ run.dateAdded|date('Y-m-d H:i') }}</td><td><a class="btn btn-default btn-sm" href="{{ path('mautic_meta_consent_sync_rejections', {runId: run.id}) }}">Rejeitados</a>{% if run.status in ['waiting','ready_to_confirm','syncing','failed'] %}<form style="display:inline" method="post" action="{{ path('mautic_meta_consent_sync_cancel', {runId: run.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_consent_sync_cancel_' ~ run.id) }}"><button class="btn btn-danger btn-sm">Cancelar</button></form>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="7">Nenhuma sincronização executada.</td></tr>{% endfor %}
+    </tbody></table></div>
+</div></div>
 <div class="panel panel-default ma-md"><div class="panel-body">
     <p>{{ 'mautic.meta.identities.help'|trans }}</p>
     <div class="table-responsive"><table class="table table-hover">

@@ -13,6 +13,8 @@ use MauticPlugin\MauticMetaBundle\Application\Safety\OutboundPolicy;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
+use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplate;
+use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplateRepository;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
 
 final class WhatsAppSender
@@ -25,6 +27,7 @@ final class WhatsAppSender
         private ?OutboundPolicy $outboundPolicy = null,
         private ?WebhookAdapterDispatcher $adapters = null,
         private ?ConversationManager $conversations = null,
+        private ?WhatsAppTemplateRepository $templates = null,
     ) {
     }
 
@@ -41,6 +44,16 @@ final class WhatsAppSender
     {
         if ('' === trim($name) || '' === trim($language)) {
             throw new \InvalidArgumentException('WhatsApp template name and language are required.');
+        }
+        if (null !== $this->templates) {
+            $template = $this->templates->findOneBy([
+                'name'     => $name,
+                'language' => $language,
+                'status'   => 'APPROVED',
+            ]);
+            if (!$template instanceof WhatsAppTemplate || $template->getBusinessAccount()->getConnection()->getId() !== $phoneAsset->getConnection()->getId()) {
+                throw new \DomainException('An approved WhatsApp template for this Meta connection is required.');
+            }
         }
         $template = ['name' => $name, 'language' => ['code' => $language]];
         if ([] !== $components) {
