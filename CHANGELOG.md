@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2 - 2026-09-02
+
+- Add the missing localized “Last activity” identity-list label.
+
 ## 0.8.1 - 2026-09-02
 
 - Separate the trusted Waitlist/API import region from the Meta asset phone region.

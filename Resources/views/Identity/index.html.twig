@@ -35,7 +35,7 @@
 <div class="panel panel-default ma-md"><div class="panel-body">
     <p>{{ 'mautic.meta.identities.help'|trans }}</p>
     <div class="table-responsive"><table class="table table-hover">
-        <thead><tr><th>{{ 'mautic.core.channel'|trans }}</th><th>Meta ID / phone</th><th>{{ 'mautic.lead.lead'|trans }}</th><th>{{ 'mautic.meta.consent'|trans }}</th><th>{{ 'mautic.core.date.last.active'|trans }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ 'mautic.core.channel'|trans }}</th><th>Meta ID / phone</th><th>{{ 'mautic.lead.lead'|trans }}</th><th>{{ 'mautic.meta.consent'|trans }}</th><th>{{ 'mautic.meta.last_activity'|trans }}</th><th></th></tr></thead>
         <tbody>
         {% for identity in identities %}
             {% set formId = 'meta-identity-' ~ identity.id %}
