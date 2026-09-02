@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1 - 2026-09-02
+
+- Retry webhook events left in `received` when a request stops after durable ingestion but before processing.
+- Apply the real WhatsApp delivery failure to the message instead of leaving it accepted indefinitely.
+
 ## 0.10.0 - 2026-09-02
 
 - Require and persist `response.messages[0].id` before completing any WhatsApp job.

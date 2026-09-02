@@ -13,6 +13,20 @@ use PHPUnit\Framework\TestCase;
 
 final class WebhookIngestorTest extends TestCase
 {
+    public function testReceivedDuplicateIsReleasedAfterInterruptedProcessing(): void
+    {
+        $event = (new MetaWebhookEvent(11))->setStatus('received');
+        $repository = $this->createMock(MetaWebhookEventRepository::class);
+        $repository->method('findOneBy')->willReturn($event);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('flush');
+
+        $result = (new WebhookIngestor($entityManager, $repository))->ingest(new MetaConnection(), ['object' => 'whatsapp_business_account', 'entry' => [['id' => 'waba-1']]]);
+
+        self::assertFalse($result['duplicate']);
+        self::assertTrue($result['retry']);
+    }
+
     public function testFailedDuplicateIsReleasedForRetry(): void
     {
         $event = (new MetaWebhookEvent(12))->setStatus('failed')->setLastError('temporary');

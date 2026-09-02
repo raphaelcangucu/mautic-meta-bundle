@@ -22,7 +22,9 @@ final class WebhookIngestor
         $eventKey = $this->eventKey($payload);
         $existing = $this->repository->findOneBy(['connection' => $connection, 'eventKey' => $eventKey]);
         if ($existing instanceof MetaWebhookEvent) {
-            if ('failed' === $existing->getStatus()) {
+            // A request can be interrupted after the durable ingest flush and before
+            // processing starts. Only a fully processed event is a true duplicate.
+            if (in_array($existing->getStatus(), ['failed', 'received'], true)) {
                 $existing->setStatus('received')->setLastError(null);
                 $this->entityManager->flush();
 
