@@ -26,6 +26,7 @@ Multi-account integration between Mautic 7 and the official Meta Graph API. What
 - Visual create, edit, delete, and synchronize workflows for official WhatsApp templates.
 - Durable database-backed outbound queue with configurable attempts, exponential backoff, stalled-job recovery, and a single-worker advisory lock.
 - Per-connection token-bucket rate limiting and Graph API diagnostics.
+- Mandatory local anti-spam guard with conservative initial caps per asset and recipient, cooldowns, and WhatsApp's 24-hour customer-service window.
 - Failed webhook audit state with safe retry of previously failed event IDs.
 - Operational message, queue, and webhook screen with manual retry, cancellation, and replay controls.
 - Conservative automatic inbound contact matching: configurable exact-field lookup and unique normalized phone fallback for WhatsApp.
@@ -41,6 +42,10 @@ php bin/console mautic:meta:queue:process --limit=100 --env=prod
 ```
 
 Campaign actions queue messages by default. Permanent validation, consent, and DNC failures are not retried; rate-limit and server failures use exponential backoff.
+
+## Safe initial sending limits
+
+Every outbound path (campaigns, queue, UI, and MCP) is checked immediately before it calls Meta. WhatsApp starts at 250 messages per asset/24h, 50/hour, 3 per recipient/24h, and a 60-second recipient cooldown. Instagram starts at 50 messages per asset/24h, 20/hour, 3 per recipient/24h, and a 5-minute recipient cooldown. Limits may be lowered per asset but cannot be raised beyond these conservative defaults in this release. WhatsApp free-form content is blocked outside the 24-hour customer-service window; an approved template is required. Meta's account tier, quality controls, recipient consent, DNC, and API limits still apply and may be stricter.
 
 ## Legacy migration
 

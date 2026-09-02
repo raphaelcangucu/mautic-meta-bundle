@@ -7,6 +7,7 @@ namespace MauticPlugin\MauticMetaBundle\Application\WhatsApp;
 use Doctrine\ORM\EntityManagerInterface;
 use Mautic\LeadBundle\Entity\Lead;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
+use MauticPlugin\MauticMetaBundle\Application\Safety\OutboundPolicy;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
@@ -19,6 +20,7 @@ final class WhatsAppSender
         private EntityManagerInterface $entityManager,
         private PhoneNormalizer $phones,
         private IdentityManager $identities,
+        private ?OutboundPolicy $outboundPolicy = null,
     ) {}
 
     public function sendText(MetaAsset $phoneAsset, string $recipient, string $text, bool $previewUrl = false, ?Lead $contact = null): WhatsAppSendResult
@@ -72,6 +74,7 @@ final class WhatsAppSender
         $region = (string) ($asset->getSettings()['default_region'] ?? 'BR');
         $recipient = $this->phones->normalize($recipient, $region);
         $this->identities->assertCanSend($asset, $recipient, $contact);
+        $this->outboundPolicy?->assertAllowed($asset, 'whatsapp', $recipient, $type);
         $payload = ['messaging_product' => 'whatsapp', 'recipient_type' => 'individual', 'to' => $recipient, 'type' => $type] + $content;
         $log = (new MetaMessage())
             ->setAsset($asset)

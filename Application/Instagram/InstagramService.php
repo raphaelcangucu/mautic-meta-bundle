@@ -7,6 +7,7 @@ namespace MauticPlugin\MauticMetaBundle\Application\Instagram;
 use Doctrine\ORM\EntityManagerInterface;
 use Mautic\LeadBundle\Entity\Lead;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
+use MauticPlugin\MauticMetaBundle\Application\Safety\OutboundPolicy;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
@@ -18,6 +19,7 @@ final class InstagramService
         private MetaGraphClientInterface $graph,
         private EntityManagerInterface $entityManager,
         private IdentityManager $identities,
+        private ?OutboundPolicy $outboundPolicy = null,
     ) {}
 
     public function profile(MetaAsset $account): array
@@ -101,6 +103,7 @@ final class InstagramService
     {
         $this->assertAccount($account);
         $this->identities->assertChannelContactable($contact, 'instagram');
+        $this->outboundPolicy?->assertAllowed($account, 'instagram', $recipient, $type);
         $log = (new MetaMessage())->setAsset($account)->setContact($contact)->setChannel('instagram')->setMessageType($type)->setRecipient($recipient)->setPayload($payload);
         $this->entityManager->persist($log);
         $this->entityManager->flush();

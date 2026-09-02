@@ -47,6 +47,7 @@ final class AssetManager
                 'default_region' => strtoupper((string) ($data['default_region'] ?? 'BR')),
                 'contact_match_field' => $this->nullable($data['contact_match_field'] ?? null),
                 'require_opt_in' => (bool) ($data['require_opt_in'] ?? true),
+                ...$this->safetySettings($type, $data),
             ]);
         $this->entityManager->persist($asset);
         $this->entityManager->flush();
@@ -81,6 +82,7 @@ final class AssetManager
                 'default_region' => strtoupper((string) ($data['default_region'] ?? 'BR')),
                 'contact_match_field' => $this->nullable($data['contact_match_field'] ?? null),
                 'require_opt_in' => (bool) ($data['require_opt_in'] ?? true),
+                ...$this->safetySettings($type, $data),
             ]);
         $this->entityManager->flush();
 
@@ -98,5 +100,23 @@ final class AssetManager
         $value = trim((string) $value);
 
         return '' === $value ? null : $value;
+    }
+
+    /** @return array<string, int|bool> */
+    private function safetySettings(AssetType $type, array $data): array
+    {
+        $whatsApp = AssetType::WhatsAppPhoneNumber === $type;
+        $dailyMaximum = $whatsApp ? 250 : 50;
+        $hourlyMaximum = $whatsApp ? 50 : 20;
+        $cooldownMinimum = $whatsApp ? 60 : 300;
+
+        return [
+            'anti_spam_enabled' => true,
+            'daily_send_limit' => max(1, min($dailyMaximum, (int) ($data['daily_send_limit'] ?? $dailyMaximum))),
+            'hourly_send_limit' => max(1, min($hourlyMaximum, (int) ($data['hourly_send_limit'] ?? $hourlyMaximum))),
+            'recipient_daily_limit' => max(1, min(3, (int) ($data['recipient_daily_limit'] ?? 3))),
+            'recipient_cooldown_seconds' => max($cooldownMinimum, min(86400, (int) ($data['recipient_cooldown_seconds'] ?? $cooldownMinimum))),
+            'enforce_customer_service_window' => $whatsApp,
+        ];
     }
 }
