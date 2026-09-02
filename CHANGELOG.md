@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 - 2026-09-02
+
+- Resolve Business Manager Instagram asset IDs to canonical Instagram Graph IDs through linked Page relationships or `ig_user_id` metadata.
+- Remove the unsupported `user_id` field from Instagram profile reads.
+- Use canonical IDs for Instagram profiles, media, conversations, and message sends.
+
 ## 0.6.1 - 2026-09-02
 
 - Persist the connection `active`/`error` status and full diagnostic result.

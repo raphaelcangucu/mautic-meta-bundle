@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MauticPlugin\MauticMetaBundle\Application\Connection;
 
 use Doctrine\ORM\EntityManagerInterface;
+use MauticPlugin\MauticMetaBundle\Application\Instagram\InstagramAccountResolver;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
@@ -22,6 +23,7 @@ final class ConnectionDiagnostic
     public function __construct(
         private MetaGraphClientInterface $graph,
         private EntityManagerInterface $entityManager,
+        private ?InstagramAccountResolver $instagramResolver = null,
     ) {
     }
 
@@ -118,11 +120,13 @@ final class ConnectionDiagnostic
             ++$configuredCount;
 
             try {
-                $profile = $this->graph->get($connection, $asset->getExternalId(), ['fields' => 'id']);
+                $canonicalId = $this->instagramResolver?->resolve($asset) ?? $asset->getExternalId();
+                $profile = $this->graph->get($connection, $canonicalId, ['fields' => 'id']);
                 $accessible[] = [
                     'id'         => $asset->getId(),
                     'externalId' => $asset->getExternalId(),
                     'type'       => $asset->getType()->value,
+                    'canonicalId' => $canonicalId,
                     'verifiedId' => $profile['id'] ?? null,
                 ];
             } catch (\Throwable $exception) {

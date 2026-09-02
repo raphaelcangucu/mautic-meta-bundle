@@ -35,6 +35,7 @@ Multi-account integration between Mautic 7 and the official Meta Graph API. What
 - Multiple signed omnichannel webhook adapters per Meta connection, filtered by event and channel.
 - Native WhatsApp/Instagram conversation inbox with history, unread state, replies, and workflow status.
 - Connection diagnostics verify Instagram permissions and access to every configured Instagram profile.
+- Business Manager Instagram asset IDs are resolved to canonical Instagram Graph IDs before profile, media, conversation, or messaging calls.
 
 ## Omnichannel webhook adapters
 

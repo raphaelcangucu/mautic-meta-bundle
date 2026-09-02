@@ -24,6 +24,7 @@ final class InstagramService
         private ?OutboundPolicy $outboundPolicy = null,
         private ?WebhookAdapterDispatcher $adapters = null,
         private ?ConversationManager $conversations = null,
+        private ?InstagramAccountResolver $accountResolver = null,
     ) {
     }
 
@@ -31,7 +32,9 @@ final class InstagramService
     {
         $this->assertAccount($account);
 
-        return $this->graph->get($account->getConnection(), $account->getExternalId(), ['fields' => 'id,user_id,username,name,profile_picture_url,followers_count,follows_count,media_count']);
+        return $this->graph->get($account->getConnection(), $this->accountId($account), [
+            'fields' => 'id,username,name,profile_picture_url,followers_count,follows_count,media_count',
+        ]);
     }
 
     public function media(MetaAsset $account, int $limit = 50, ?string $after = null): array
@@ -42,7 +45,7 @@ final class InstagramService
             $query['after'] = $after;
         }
 
-        return $this->graph->get($account->getConnection(), $account->getExternalId().'/media', $query);
+        return $this->graph->get($account->getConnection(), $this->accountId($account).'/media', $query);
     }
 
     public function comments(MetaAsset $account, string $mediaId, int $limit = 50, ?string $after = null): array
@@ -71,14 +74,14 @@ final class InstagramService
     {
         return $this->send($account, $commentId, 'private_reply', [
             'recipient' => ['comment_id' => $commentId], 'message' => ['text' => $this->text($text, 1000)],
-        ], $account->getExternalId().'/messages', $contact);
+        ], $this->accountId($account).'/messages', $contact);
     }
 
     public function directMessage(MetaAsset $account, string $instagramUserId, string $text, ?Lead $contact = null): MetaMessage
     {
         return $this->send($account, $instagramUserId, 'direct_message', [
             'recipient' => ['id' => $instagramUserId], 'message' => ['text' => $this->text($text, 1000)],
-        ], $account->getExternalId().'/messages', $contact);
+        ], $this->accountId($account).'/messages', $contact);
     }
 
     public function publicReply(MetaAsset $account, string $commentId, string $text, ?Lead $contact = null): MetaMessage
@@ -94,7 +97,7 @@ final class InstagramService
             $query['after'] = $after;
         }
 
-        return $this->graph->get($account->getConnection(), $account->getExternalId().'/conversations', $query);
+        return $this->graph->get($account->getConnection(), $this->accountId($account).'/conversations', $query);
     }
 
     public function conversationMessages(MetaAsset $account, string $conversationId): array
@@ -136,6 +139,11 @@ final class InstagramService
         if (AssetType::InstagramAccount !== $asset->getType() || !$asset->isPublished() || 'active' !== $asset->getStatus()) {
             throw new \InvalidArgumentException('A published, active Instagram professional-account asset is required.');
         }
+    }
+
+    private function accountId(MetaAsset $account): string
+    {
+        return $this->accountResolver?->resolve($account) ?? $account->getExternalId();
     }
 
     private function text(string $text, int $limit): string
