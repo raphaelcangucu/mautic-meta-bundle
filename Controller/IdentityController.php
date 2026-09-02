@@ -24,7 +24,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class IdentityController extends AbstractController
 {
-    public function index(int $page, CorePermissions $permissions, MetaContactIdentityRepository $identities, MetaAssetRepository $assets, MetaConsentSyncRunRepository $runs, Request $request): Response
+    public function index(CorePermissions $permissions, MetaContactIdentityRepository $identities, MetaAssetRepository $assets, MetaConsentSyncRunRepository $runs, Request $request, int $page = 1): Response
     {
         if (!$permissions->isGranted('meta:messages:view')) { throw $this->createAccessDeniedException(); }
 

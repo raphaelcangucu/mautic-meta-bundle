@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.4 - 2026-09-02
+
+- Keep the identities controller compatible with workers holding the previous non-paginated route, preventing AJAX menu failures during deployment.
+
 ## 0.8.3 - 2026-09-02
 
 - Add Mautic-style pagination and page-size controls to Meta identities.
