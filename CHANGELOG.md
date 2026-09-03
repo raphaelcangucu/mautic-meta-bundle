@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.4 - 2026-09-03
+
+- Recognize an inbound WhatsApp service window by linked Mautic contact when Meta's canonical `wa_id` differs from the submitted E.164 number.
+
 ## 0.10.3 - 2026-09-03
 
 - Add a secure interactive command to register configured WhatsApp phone assets with the Cloud API without persisting or logging the two-step verification PIN.

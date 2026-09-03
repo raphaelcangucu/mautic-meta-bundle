@@ -92,7 +92,7 @@ final class WhatsAppSender
         $region = (string) ($asset->getSettings()['default_region'] ?? 'BR');
         $recipient = $this->phones->normalize($recipient, $region);
         $this->identities->assertCanSend($asset, $recipient, $contact);
-        $this->outboundPolicy?->assertAllowed($asset, 'whatsapp', $recipient, $type);
+        $this->outboundPolicy?->assertAllowed($asset, 'whatsapp', $recipient, $type, $contact?->getId());
         $payload = ['messaging_product' => 'whatsapp', 'recipient_type' => 'individual', 'to' => $recipient, 'type' => $type] + $content;
         $log = (new MetaMessage())
             ->setAsset($asset)

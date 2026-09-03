@@ -16,7 +16,7 @@ final class OutboundPolicy
         private Connection $connection
     ) {}
 
-    public function assertAllowed(MetaAsset $asset, string $channel, string $recipient, string $messageType): void
+    public function assertAllowed(MetaAsset $asset, string $channel, string $recipient, string $messageType, ?int $contactId = null): void
     {
         $settings = $asset->getSettings();
         if (false === ($settings['anti_spam_enabled'] ?? true)) {
@@ -47,9 +47,14 @@ final class OutboundPolicy
         }
 
         if ('whatsapp' === $channel && 'template' !== $messageType && true === ($settings['enforce_customer_service_window'] ?? true)) {
+            $recipientClause = null === $contactId ? 'recipient = :recipient' : '(recipient = :recipient OR contact_id = :contact)';
+            $params = ['asset' => $assetId, 'channel' => $channel, 'direction' => 'inbound', 'recipient' => $recipient, 'since' => (new \DateTimeImmutable('-24 hours'))->format('Y-m-d H:i:s')];
+            if (null !== $contactId) {
+                $params['contact'] = $contactId;
+            }
             $recentInbound = (int) $this->connection->fetchOne(
-                'SELECT COUNT(id) FROM meta_messages WHERE asset_id = :asset AND channel = :channel AND direction = :direction AND recipient = :recipient AND date_added >= :since',
-                ['asset' => $assetId, 'channel' => $channel, 'direction' => 'inbound', 'recipient' => $recipient, 'since' => (new \DateTimeImmutable('-24 hours'))->format('Y-m-d H:i:s')]
+                'SELECT COUNT(id) FROM meta_messages WHERE asset_id = :asset AND channel = :channel AND direction = :direction AND '.$recipientClause.' AND date_added >= :since',
+                $params
             );
             if (0 === $recentInbound) {
                 throw new \DomainException('WhatsApp free-form messages require a customer interaction in the last 24 hours; use an approved template instead.');
