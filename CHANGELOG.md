@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.3 - 2026-09-03
+
+- Add a secure interactive command to register configured WhatsApp phone assets with the Cloud API without persisting or logging the two-step verification PIN.
+
 ## 0.10.2 - 2026-09-02
 
 - Accept a verified signed callback from the configured WABA as runtime evidence of both app association and the WhatsApp webhook subscription when Meta's `subscribed_apps` read is empty.
