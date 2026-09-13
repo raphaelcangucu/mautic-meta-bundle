@@ -25,6 +25,7 @@ final class InstagramService
         private ?WebhookAdapterDispatcher $adapters = null,
         private ?ConversationManager $conversations = null,
         private ?InstagramAccountResolver $accountResolver = null,
+        private ?InstagramPageConnectionResolver $pageConnections = null,
     ) {
     }
 
@@ -116,12 +117,19 @@ final class InstagramService
         $this->entityManager->persist($log);
         $this->entityManager->flush();
         try {
-            $response = $this->graph->post($account->getConnection(), $path, $payload);
+            $connection = in_array($type, ['private_reply', 'direct_message'], true)
+                ? ($this->pageConnections?->resolve($account) ?? $account->getConnection())
+                : $account->getConnection();
+            if (null !== $this->pageConnections && in_array($type, ['private_reply', 'direct_message'], true)) {
+                $path = $this->pageConnections->pageId($account).'/messages';
+            }
+            $response = $this->graph->post($connection, $path, $payload);
             $messageId = (string) ($response['message_id'] ?? $response['id'] ?? '');
             if ('' === $messageId) {
                 throw new \RuntimeException('Meta response did not contain an Instagram message ID.');
             }
             $log->setExternalId($messageId)->setResponse($response)->setStatus('accepted');
+            $this->entityManager->persist($log);
             $this->entityManager->flush();
             $this->conversations?->record($log);
             $this->adapters?->dispatch($log, 'message.sent');
@@ -129,6 +137,7 @@ final class InstagramService
             return $log;
         } catch (\Throwable $exception) {
             $log->setError($exception->getMessage())->setStatus('failed');
+            $this->entityManager->persist($log);
             $this->entityManager->flush();
             throw $exception;
         }

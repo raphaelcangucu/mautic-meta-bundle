@@ -18,16 +18,18 @@ final class CampaignMessageDispatcher
         private LoggerInterface $logger
     ) {}
 
-    public function dispatch(MetaMessage $message): void
+    public function dispatch(MetaMessage $message, string $eventType = MetaEvents::CAMPAIGN_MESSAGE_TYPE): bool
     {
         $contact = $message->getContact();
-        if (null === $contact || 0 >= $contact->getId()) { return; }
+        if (null === $contact || 0 >= $contact->getId()) { return false; }
         try {
             $this->contacts->setUseSystemContact(true);
             $this->contacts->setSystemContact($contact);
-            $this->executioner->execute(MetaEvents::CAMPAIGN_MESSAGE_TYPE, $message, $message->getChannel(), $message->getAsset()->getId());
+            $this->executioner->execute($eventType, $message, $message->getChannel(), $message->getAsset()->getId());
+            return true;
         } catch (\Throwable $exception) {
             $this->logger->error('Could not dispatch Meta message campaign decision.', ['message_id' => $message->getId(), 'error' => $exception->getMessage()]);
+            return false;
         } finally {
             $this->contacts->setSystemContact();
             $this->contacts->setUseSystemContact(null);

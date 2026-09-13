@@ -44,4 +44,14 @@ final class QueueManagerTest extends TestCase
         $this->expectException(\DomainException::class);
         $manager->cancel((new MetaOutboundJob())->setStatus('completed'));
     }
+
+    public function testManualRetryCannotDuplicateAnUncertainCommentPrivateReply(): void
+    {
+        $job = (new MetaOutboundJob())->setOperation('instagram_private_reply')->setIdempotencyKey('igc:example')->setStatus('failed');
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::never())->method('persist');
+
+        $this->expectException(\DomainException::class);
+        (new QueueManager($entityManager))->retry($job);
+    }
 }
