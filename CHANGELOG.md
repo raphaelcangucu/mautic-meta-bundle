@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.0 - 2026-09-13
+
+- Add native campaign decisions for Instagram comments filtered by account, exact media ID, and whole-word keyword, ignoring case and Portuguese accents.
+- Enroll and identify commenters, preserve per-comment campaign context, and queue one private report reply per comment.
+- Send Instagram messages through the linked Facebook Page with a derived Page credential kept in memory.
+- Persist webhook processing, contact links, and message outcomes explicitly; protect concurrent webhook processing and uncertain outbound results.
+- Support campaign re-entry after automatic exits while respecting explicit manual removal.
+- Validate the real comment-to-report flow and add regression coverage for matching, re-entry, replay, Page credentials, and queue safeguards.
+
 ## 0.10.4 - 2026-09-03
 
 - Recognize an inbound WhatsApp service window by linked Mautic contact when Meta's canonical `wa_id` differs from the submitted E.164 number.
