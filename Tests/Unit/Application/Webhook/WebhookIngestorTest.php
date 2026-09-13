@@ -19,6 +19,7 @@ final class WebhookIngestorTest extends TestCase
         $repository = $this->createMock(MetaWebhookEventRepository::class);
         $repository->method('findOneBy')->willReturn($event);
         $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('persist')->with($event);
         $entityManager->expects(self::once())->method('flush');
 
         $result = (new WebhookIngestor($entityManager, $repository))->ingest(new MetaConnection(), ['object' => 'whatsapp_business_account', 'entry' => [['id' => 'waba-1']]]);
@@ -33,6 +34,7 @@ final class WebhookIngestorTest extends TestCase
         $repository = $this->createMock(MetaWebhookEventRepository::class);
         $repository->method('findOneBy')->willReturn($event);
         $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('persist')->with($event);
         $entityManager->expects(self::once())->method('flush');
 
         $result = (new WebhookIngestor($entityManager, $repository))->ingest(new MetaConnection(), ['object' => 'instagram', 'entry' => [['id' => 'ig-1']]]);
@@ -49,6 +51,7 @@ final class WebhookIngestorTest extends TestCase
         $repository = $this->createMock(MetaWebhookEventRepository::class);
         $repository->method('find')->with(13)->willReturn($event);
         $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('persist')->with($event);
         $entityManager->expects(self::once())->method('flush');
 
         (new WebhookIngestor($entityManager, $repository))->complete(13, new \RuntimeException('processor unavailable'));

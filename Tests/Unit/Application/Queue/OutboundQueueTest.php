@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundOperationExecutor;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundQueue;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSendResult;
+use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
 use PHPUnit\Framework\TestCase;
@@ -70,13 +71,41 @@ final class OutboundQueueTest extends TestCase
         self::assertSame('failed', $job->getStatus());
     }
 
+    public function testStalledCommentPrivateReplyIsHeldForReviewWithoutResending(): void
+    {
+        $job = (new MetaOutboundJob())->setOperation('instagram_private_reply')->setIdempotencyKey('igc:example')->setStatus('processing')->setLockedAt(new \DateTimeImmutable('-20 minutes'));
+        [$queue, $executor] = $this->queue([], [$job]);
+        $executor->expects(self::never())->method('execute');
+
+        $result = $queue->work();
+
+        self::assertSame(1, $result['recovered']);
+        self::assertSame('failed', $job->getStatus());
+        self::assertStringContainsString('uncertain', (string) $job->getLastError());
+    }
+
+    public function testRepeatedCommentActionUsesExistingUniqueJob(): void
+    {
+        $existing = (new MetaOutboundJob(91))->setOperation('instagram_private_reply')->setIdempotencyKey('igc:example');
+        $repository = $this->createMock(MetaOutboundJobRepository::class);
+        $repository->expects(self::exactly(2))->method('findOneBy')->with(['idempotencyKey' => 'igc:example'])->willReturn($existing);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::never())->method('persist');
+        $executor = $this->createMock(OutboundOperationExecutor::class);
+        $executor->expects(self::never())->method('execute');
+        $queue = new OutboundQueue($repository, $entityManager, $executor, $this->createMock(Connection::class));
+
+        self::assertSame($existing, $queue->enqueue(new MetaAsset(4), 'instagram_private_reply', ['recipient' => 'comment-1', 'text' => 'Report'], null, 1, 'igc:example'));
+    }
+
     /** @param list<MetaOutboundJob> $dueJobs
+     *  @param list<MetaOutboundJob> $stalledJobs
      *  @return array{OutboundQueue, OutboundOperationExecutor&\PHPUnit\Framework\MockObject\MockObject}
      */
-    private function queue(array $dueJobs): array
+    private function queue(array $dueJobs, array $stalledJobs = []): array
     {
         $repository = $this->createMock(MetaOutboundJobRepository::class);
-        $repository->method('findStalled')->willReturn([]);
+        $repository->method('findStalled')->willReturn($stalledJobs);
         $repository->method('findDue')->willReturn($dueJobs);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $executor = $this->createMock(OutboundOperationExecutor::class);

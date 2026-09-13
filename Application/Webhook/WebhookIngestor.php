@@ -26,6 +26,7 @@ final class WebhookIngestor
             // processing starts. Only a fully processed event is a true duplicate.
             if (in_array($existing->getStatus(), ['failed', 'received'], true)) {
                 $existing->setStatus('received')->setLastError(null);
+                $this->entityManager->persist($existing);
                 $this->entityManager->flush();
 
                 return ['duplicate' => false, 'retry' => true, 'eventId' => $existing->getId(), 'eventKey' => $eventKey];
@@ -50,6 +51,7 @@ final class WebhookIngestor
         if (!$event instanceof MetaWebhookEvent) { return; }
         $event->setAttempts($event->getAttempts() + 1)->setProcessedAt(new \DateTime());
         if (null === $error) { $event->setStatus('processed')->setLastError(null); } else { $event->setStatus('failed')->setLastError($error->getMessage()); }
+        $this->entityManager->persist($event);
         $this->entityManager->flush();
     }
 

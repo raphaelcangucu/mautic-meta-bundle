@@ -117,6 +117,11 @@ final class OutboundQueue
     {
         $stalled = $this->jobs->findStalled($before);
         foreach ($stalled as $job) {
+            if (str_starts_with((string) $job->getIdempotencyKey(), 'igc:')) {
+                $job->setStatus('failed')->setLockedAt(null)->setLastError('Private reply outcome is uncertain after worker timeout; review before any manual action.');
+                $this->entityManager->persist($job);
+                continue;
+            }
             $job->setStatus('retry')->setLockedAt(null)->setAvailableAt(new \DateTimeImmutable())->setLastError('Recovered after worker timeout.');
             $this->entityManager->persist($job);
         }

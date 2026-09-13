@@ -11,4 +11,7 @@ final class MetaEvents
     public const CAMPAIGN_INSTAGRAM_SEND = 'mautic.meta.campaign.instagram.send';
     public const CAMPAIGN_MESSAGE_DECISION = 'mautic.meta.campaign.message.decision';
     public const CAMPAIGN_MESSAGE_TYPE = 'meta.message.event';
+    public const CAMPAIGN_INSTAGRAM_COMMENT_TYPE = 'meta.instagram.comment';
+    public const CAMPAIGN_INSTAGRAM_COMMENT_DECISION = 'mautic.meta.campaign.instagram.comment.decision';
+    public const CAMPAIGN_INSTAGRAM_COMMENT_PRIVATE_REPLY = 'mautic.meta.campaign.instagram.comment.private_reply';
 }

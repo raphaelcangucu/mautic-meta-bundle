@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\MauticMetaBundle\Controller;
 
+use Doctrine\ORM\EntityManagerInterface;
 use MauticPlugin\MauticMetaBundle\Application\Connection\ConnectionCredentialProvider;
 use MauticPlugin\MauticMetaBundle\Application\Webhook\InstagramWebhookProcessor;
 use MauticPlugin\MauticMetaBundle\Application\Webhook\WebhookIngestor;
@@ -24,6 +25,7 @@ final class WebhookController
         private WebhookIngestor $ingestor,
         private WhatsAppWebhookProcessor $whatsAppProcessor,
         private InstagramWebhookProcessor $instagramProcessor,
+        private EntityManagerInterface $entityManager,
     ) {}
 
     public function handle(int $connectionId, Request $request): Response
@@ -51,17 +53,40 @@ final class WebhookController
             return new JsonResponse(['error' => 'Invalid JSON.'], Response::HTTP_BAD_REQUEST);
         }
 
+        if ('instagram' !== ($decoded['object'] ?? null)) {
+            return $this->ingestAndProcess($connection, $decoded);
+        }
+
+        $lock = 'meta_hook_'.hash('sha1', $connectionId.':'.$payload);
+        $db = $this->entityManager->getConnection();
+        if (1 !== (int) $db->fetchOne('SELECT GET_LOCK(:lock_name, 10)', ['lock_name' => $lock])) {
+            return new JsonResponse(['received' => false, 'error' => 'Webhook is being processed.'], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+        try {
+            return $this->ingestAndProcess($connection, $decoded);
+        } finally {
+            $db->fetchOne('SELECT RELEASE_LOCK(:lock_name)', ['lock_name' => $lock]);
+        }
+    }
+
+    /** @param array<string, mixed> $decoded */
+    private function ingestAndProcess(MetaConnection $connection, array $decoded): Response
+    {
         $ingested = $this->ingestor->ingest($connection, $decoded);
         if (true === $ingested['duplicate']) {
             $processed = ['duplicate' => true];
         } else {
             try {
                 if ('whatsapp_business_account' === ($decoded['object'] ?? null)) { $processed = $this->whatsAppProcessor->process($decoded); }
-                elseif ('instagram' === ($decoded['object'] ?? null)) { $processed = $this->instagramProcessor->process($decoded); }
+                elseif ('instagram' === ($decoded['object'] ?? null)) { $processed = $this->instagramProcessor->process($decoded, $connection); }
                 else { $processed = ['ignored' => true]; }
                 $this->ingestor->complete((int) $ingested['eventId']);
             } catch (\Throwable $exception) {
-                $this->ingestor->complete((int) $ingested['eventId'], $exception);
+                // A failed transactional campaign execution can close Doctrine's
+                // entity manager. The durable "received" event remains retryable.
+                if ($this->entityManager->isOpen()) {
+                    $this->ingestor->complete((int) $ingested['eventId'], $exception);
+                }
 
                 return new JsonResponse(['received' => false, 'error' => 'Webhook processing failed.'], Response::HTTP_INTERNAL_SERVER_ERROR);
             }

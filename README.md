@@ -39,6 +39,17 @@ Multi-account integration between Mautic 7 and the official Meta Graph API. What
 - Individually evidenced WhatsApp landing opt-ins are registered through one idempotent service, with immutable audit records and later opt-out precedence.
 - Meta > Identities provides mandatory preview and confirmed historical synchronization directly from the persisted landing submission source.
 
+## Instagram comment to private report reply
+
+This flow is inactive until a Mautic campaign is published with an exact Instagram media ID and a nonempty private-reply message. No account, media ID, or report link is hard-coded.
+
+1. Confirm that the Meta connection's signed webhook receives the Instagram `comments` field for the intended professional account, and that the account asset resolves to the webhook's canonical Instagram ID.
+2. Create an unpublished Mautic campaign. Add **Instagram comment on a specific post** as its decision. Select the Instagram asset, enter the new publication's **Graph media ID** (not its URL), and set the whole-word keyword to `relatorio`. Matching ignores case and Portuguese accents, so `relatório` also matches.
+3. On the decision's positive path, add exactly one terminal **Private reply to matching Instagram comment** action. The campaign must contain only these two events, with the decision at the root and no negative path. Enter the approved report text or link. The reply uses the event's comment ID; no contact field is needed. Mautic's action timing controls when the job is queued; use an immediate action for an immediate reply.
+4. Review the campaign, then publish it only after the media ID and report destination are real and the webhook subscription has been verified. Run the existing Meta outbound queue worker. Test with a controlled comment before broader use.
+
+Only published campaigns with a matching asset, exact media ID, and whole-word keyword evaluate the decision. A new commenter is associated with an anonymous Mautic contact and enrolled in the matching campaign. Mautic schedules and runs the positive-path action; that action creates a unique queue job per asset and comment. Repeated comments from the same contact require Mautic's campaign restart option. If the action fails after the decision log is stored, Mautic schedules that action for another attempt in five minutes; webhook replay leaves the rotation and existing action log intact. The unique queue key prevents a second job for the same comment. Ambiguous delivery outcomes are held for manual review instead of being retried automatically.
+
 ## Landing WhatsApp consent
 
 Two independent consent sources are supported:
