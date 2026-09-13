@@ -15,7 +15,8 @@ enum AssetType: string
     {
         return match ($this) {
             self::WhatsAppBusinessAccount, self::WhatsAppPhoneNumber => Channel::WhatsApp,
-            self::InstagramAccount, self::FacebookPage => Channel::Instagram,
+            self::InstagramAccount => Channel::Instagram,
+            self::FacebookPage => Channel::Facebook,
         };
     }
 }

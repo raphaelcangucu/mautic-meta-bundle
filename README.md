@@ -175,3 +175,9 @@ The Instagram architecture is informed by [OpenReply](https://github.com/diwenne
 ## License
 
 GPL-3.0-or-later.
+
+## Native support inbox (0.12.0)
+
+This release adds Facebook Messenger and Facebook feed comments alongside WhatsApp and Instagram. The optional MauticInboxBundle 1.0.0 provides the shared support interface; the connector continues to own channel credentials, identities, messages and outbound processing. Human takeover gates both direct and queued automation. Without the inbox bundle, the no-op integration preserves standalone operation.
+
+Participant names, handles and profile images are enriched when the channel API and granted permissions allow it. Facebook Page permissions and webhook subscriptions must be configured for the intended messaging and comment features.

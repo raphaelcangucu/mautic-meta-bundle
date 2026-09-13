@@ -50,7 +50,7 @@ class IdentityManager
         $this->entityManager->persist($identity);
     }
 
-    public function assertCanSend(MetaAsset $asset, string $externalId, ?Lead $contact): void
+    public function assertCanSend(MetaAsset $asset, string $externalId, ?Lead $contact, bool $serviceReply = false): void
     {
         $this->assertChannelContactable($contact, 'whatsapp');
         $identity = $this->identities->findForAssetAndExternalId($asset, $externalId);
@@ -67,7 +67,7 @@ class IdentityManager
             throw new \DomainException('A later WhatsApp opt-out remains in force.');
         }
         $requiresOptIn = (bool) ($asset->getSettings()['require_opt_in'] ?? true);
-        if ($requiresOptIn && $identity?->getConsentStatus() !== ConsentStatus::OptedIn) {
+        if ($requiresOptIn && !$serviceReply && $identity?->getConsentStatus() !== ConsentStatus::OptedIn) {
             throw new \DomainException('Explicit WhatsApp opt-in is required for this phone number.');
         }
     }

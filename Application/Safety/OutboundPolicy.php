@@ -18,6 +18,7 @@ final class OutboundPolicy
 
     public function assertAllowed(MetaAsset $asset, string $channel, string $recipient, string $messageType, ?int $contactId = null): void
     {
+        $table = (defined('MAUTIC_TABLE_PREFIX') ? MAUTIC_TABLE_PREFIX : '').'meta_messages';
         $settings = $asset->getSettings();
         if (false === ($settings['anti_spam_enabled'] ?? true)) {
             throw new \DomainException('Outbound anti-spam protection cannot be disabled. Adjust its limits instead.');
@@ -53,7 +54,7 @@ final class OutboundPolicy
                 $params['contact'] = $contactId;
             }
             $recentInbound = (int) $this->connection->fetchOne(
-                'SELECT COUNT(id) FROM meta_messages WHERE asset_id = :asset AND channel = :channel AND direction = :direction AND '.$recipientClause.' AND date_added >= :since',
+                'SELECT COUNT(id) FROM '.$table.' WHERE asset_id = :asset AND channel = :channel AND direction = :direction AND '.$recipientClause.' AND date_added >= :since',
                 $params
             );
             if (0 === $recentInbound) {
@@ -64,7 +65,8 @@ final class OutboundPolicy
 
     private function countSince(int $assetId, string $channel, ?string $recipient, \DateTimeImmutable $since): int
     {
-        $sql = "SELECT COUNT(id) FROM meta_messages WHERE asset_id = :asset AND channel = :channel AND direction = 'outbound' AND status <> 'failed' AND date_added >= :since";
+        $table = (defined('MAUTIC_TABLE_PREFIX') ? MAUTIC_TABLE_PREFIX : '').'meta_messages';
+        $sql = "SELECT COUNT(id) FROM {$table} WHERE asset_id = :asset AND channel = :channel AND direction = 'outbound' AND status <> 'failed' AND date_added >= :since";
         $params = ['asset' => $assetId, 'channel' => $channel, 'since' => $since->format('Y-m-d H:i:s')];
         if (null !== $recipient) {
             $sql .= ' AND recipient = :recipient';

@@ -8,27 +8,33 @@ use Doctrine\ORM\EntityManagerInterface;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConversation;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConversationRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 
 final class ConversationManager
 {
     public function __construct(
         private MetaConversationRepository $repository,
         private EntityManagerInterface $entityManager,
+        private ?InboxIntegrationInterface $inboxIntegration = null,
     ) {
     }
 
     public function record(MetaMessage $message): MetaConversation
     {
+        $conversationRecipient = in_array($message->getChannel(), ['instagram', 'facebook'], true) && 'comment' === $message->getMessageType()
+            ? 'comment:'.(string) ($message->getPayload()['commentId'] ?? $message->getExternalId())
+            : $message->getRecipient();
+        if (in_array($message->getChannel(), ['instagram', 'facebook'], true) && in_array($message->getMessageType(), ['private_reply', 'comment_reply'], true)) { $conversationRecipient = 'comment:'.$message->getRecipient(); }
         $conversation = $this->repository->findOneBy([
             'asset'     => $message->getAsset(),
             'channel'   => $message->getChannel(),
-            'recipient' => $message->getRecipient(),
+            'recipient' => $conversationRecipient,
         ]);
         if (!$conversation instanceof MetaConversation) {
             $conversation = (new MetaConversation())
                 ->setAsset($message->getAsset())
                 ->setChannel($message->getChannel())
-                ->setRecipient($message->getRecipient());
+                ->setRecipient($conversationRecipient);
             $this->entityManager->persist($conversation);
         }
 
@@ -47,8 +53,10 @@ final class ConversationManager
 
         $message->setConversation($conversation);
         $this->entityManager->persist($conversation);
+        $this->entityManager->persist($message);
         $this->entityManager->flush();
 
+        if ('outbound' === $message->getDirection()) { $this->inboxIntegration?->messagePersisted($message); }
         return $conversation;
     }
 

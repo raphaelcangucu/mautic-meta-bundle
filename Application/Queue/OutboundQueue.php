@@ -10,7 +10,10 @@ use Mautic\LeadBundle\Entity\Lead;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
+use MauticPlugin\MauticMetaBundle\Entity\MetaConversation;
+use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 
 final class OutboundQueue
 {
@@ -19,6 +22,7 @@ final class OutboundQueue
         private EntityManagerInterface $entityManager,
         private OutboundOperationExecutor $executor,
         private Connection $connection,
+        private InboxIntegrationInterface $inboxIntegration,
     ) {
     }
 
@@ -27,7 +31,7 @@ final class OutboundQueue
      */
     public function enqueue(MetaAsset $asset, string $operation, array $payload, ?Lead $contact = null, int $maxAttempts = 5, ?string $idempotencyKey = null): MetaOutboundJob
     {
-        if (!in_array($operation, ['whatsapp_text', 'whatsapp_template', 'whatsapp_media', 'whatsapp_interactive', 'instagram_private_reply', 'instagram_public_reply', 'instagram_direct_message'], true)) {
+        if (!in_array($operation, ['whatsapp_text', 'whatsapp_template', 'whatsapp_media', 'whatsapp_interactive', 'instagram_private_reply', 'instagram_public_reply', 'instagram_direct_message', 'facebook_public_reply', 'facebook_direct_message'], true)) {
             throw new \InvalidArgumentException('Unsupported Meta queue operation.');
         }
         if (null !== $idempotencyKey && $this->jobs->findOneBy(['idempotencyKey' => $idempotencyKey]) instanceof MetaOutboundJob) {
@@ -68,9 +72,29 @@ final class OutboundQueue
             $job->setStatus('processing')->setLockedAt($now)->setAttempts($job->getAttempts() + 1);
             $this->entityManager->persist($job);
             $this->entityManager->flush();
+            $this->notifyInbox($job);
             try {
                 $result = $this->executor->execute($job);
                 $messageLogId = $result instanceof \MauticPlugin\MauticMetaBundle\Entity\MetaMessage ? (int) $result->getId() : $result->logId;
+                $inboxConversationId = (int) ($job->getPayload()['_inbox_conversation_id'] ?? 0);
+                if (0 === $inboxConversationId && 'instagram_private_reply' === $job->getOperation()) {
+                    $commentConversation = $this->entityManager->getRepository(MetaConversation::class)->findOneBy([
+                        'asset' => $job->getAsset(),
+                        'channel' => 'instagram',
+                        'recipient' => 'comment:'.(string) ($job->getPayload()['recipient'] ?? ''),
+                    ]);
+                    $inboxConversationId = $commentConversation instanceof MetaConversation ? (int) $commentConversation->getId() : 0;
+                }
+                if ($inboxConversationId > 0) {
+                    $inboxConversation = $this->entityManager->find(MetaConversation::class, $inboxConversationId);
+                    $messageLog = $result instanceof MetaMessage ? $result : $this->entityManager->find(MetaMessage::class, $messageLogId);
+                    if ($inboxConversation instanceof MetaConversation && $messageLog instanceof MetaMessage && $messageLog->getAsset()->getId() === $inboxConversation->getAsset()->getId()) {
+                        $messageLog->setConversation($inboxConversation);
+                        $inboxConversation->setLastMessageAt(new \DateTimeImmutable());
+                        $this->entityManager->persist($messageLog);
+                        $this->entityManager->persist($inboxConversation);
+                    }
+                }
                 if ('whatsapp_' === substr($job->getOperation(), 0, 9)) {
                     if (!$result instanceof \MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSendResult || '' === trim($result->messageId)) {
                         throw new \RuntimeException('WhatsApp delivery cannot complete without response.messages[0].id.');
@@ -92,7 +116,14 @@ final class OutboundQueue
                 $job->setLastError(json_encode($error, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))->setLockedAt(null);
                 $permanentGraphFailure = $exception instanceof MetaGraphApiException
                     && !$exception->isRetryable();
-                if (
+                if ($exception instanceof \DomainException && str_contains($exception->getMessage(), 'Automation paused')) {
+                    $job->setStatus('blocked');
+                    ++$failed;
+                } elseif (!$exception instanceof MetaGraphApiException && !$exception instanceof \InvalidArgumentException && !$exception instanceof \DomainException) {
+                    // A transport interruption can happen after Meta accepted the request. Never retry blindly.
+                    $job->setStatus('uncertain');
+                    ++$failed;
+                } elseif (
                     $exception instanceof \InvalidArgumentException
                     || $exception instanceof \DomainException
                     || $permanentGraphFailure
@@ -108,6 +139,7 @@ final class OutboundQueue
             }
             $this->entityManager->persist($job);
             $this->entityManager->flush();
+            $this->notifyInbox($job);
         }
 
         return compact('processed', 'succeeded', 'retried', 'failed', 'recovered');
@@ -117,18 +149,25 @@ final class OutboundQueue
     {
         $stalled = $this->jobs->findStalled($before);
         foreach ($stalled as $job) {
-            if (str_starts_with((string) $job->getIdempotencyKey(), 'igc:')) {
-                $job->setStatus('failed')->setLockedAt(null)->setLastError('Private reply outcome is uncertain after worker timeout; review before any manual action.');
-                $this->entityManager->persist($job);
-                continue;
-            }
-            $job->setStatus('retry')->setLockedAt(null)->setAvailableAt(new \DateTimeImmutable())->setLastError('Recovered after worker timeout.');
+            $job->setStatus('uncertain')->setLockedAt(null)->setAvailableAt(null)->setLastError('Outbound outcome is uncertain after worker timeout; verify before any manual action.');
             $this->entityManager->persist($job);
         }
         if ([] !== $stalled) {
             $this->entityManager->flush();
+            foreach ($stalled as $job) {
+                $this->notifyInbox($job);
+            }
         }
 
         return count($stalled);
+    }
+
+    private function notifyInbox(MetaOutboundJob $job): void
+    {
+        try {
+            $this->inboxIntegration->outboundJobChanged($job);
+        } catch (\Throwable) {
+            // A support projection must never change the outcome of an external operation.
+        }
     }
 }

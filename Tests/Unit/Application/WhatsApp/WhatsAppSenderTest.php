@@ -12,6 +12,9 @@ use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
+use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
+use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 use PHPUnit\Framework\TestCase;
 
 final class WhatsAppSenderTest extends TestCase
@@ -25,7 +28,7 @@ final class WhatsAppSenderTest extends TestCase
             self::callback(static fn (array $payload): bool => '5511999999999' === $payload['to'] && 'Hello' === $payload['text']['body']),
         )->willReturn(['messages' => [['id' => 'wamid.123']]]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->expects(self::once())->method('persist');
+        $entityManager->expects(self::exactly(2))->method('persist');
         $entityManager->expects(self::exactly(2))->method('flush');
         $identities = $this->createMock(IdentityManager::class);
         $identities->expects(self::once())->method('assertCanSend');
@@ -96,6 +99,23 @@ final class WhatsAppSenderTest extends TestCase
         $sender = $this->sender();
         $this->expectException(\InvalidArgumentException::class);
         $sender->sendInteractive($this->asset(), '5511999999999', ['type' => 'unknown']);
+    }
+
+    public function testHumanTakeoverStopsAtSendBoundaryWithoutCallingMeta(): void
+    {
+        $graph = $this->createMock(MetaGraphClientInterface::class);
+        $graph->expects(self::never())->method('post');
+        $integration = new class implements InboxIntegrationInterface {
+            public function ownsSupportInbox(): bool { return true; }
+            public function messagePersisted(MetaMessage $message): void {}
+            public function automationAllowed(MetaAsset $asset, string $recipient): bool { return false; }
+            public function runAutomationGuarded(MetaAsset $asset, string $recipient, callable $operation): mixed { throw new \DomainException('Automation paused'); }
+            public function outboundJobChanged(MetaOutboundJob $job): void {}
+        };
+        $sender = new WhatsAppSender($graph, $this->createMock(EntityManagerInterface::class), new PhoneNormalizer(), $this->createMock(IdentityManager::class), inboxIntegration: $integration);
+
+        $this->expectException(\DomainException::class);
+        $sender->sendText($this->asset(), '5511999999999', 'Não enviar');
     }
 
     private function asset(): MetaAsset

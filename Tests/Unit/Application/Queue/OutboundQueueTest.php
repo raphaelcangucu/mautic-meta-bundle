@@ -9,6 +9,7 @@ use Doctrine\DBAL\Result;
 use Doctrine\ORM\EntityManagerInterface;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundOperationExecutor;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundQueue;
+use MauticPlugin\MauticMetaBundle\Application\Support\NoopInboxIntegration;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSendResult;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
@@ -31,7 +32,7 @@ final class OutboundQueueTest extends TestCase
         self::assertSame(1, $job->getAttempts());
     }
 
-    public function testRetriesTransientFailureWithBackoff(): void
+    public function testHoldsUnknownTransportFailureForReview(): void
     {
         $job = (new MetaOutboundJob())->setOperation('whatsapp_text')->setMaxAttempts(3);
         [$queue, $executor] = $this->queue([$job]);
@@ -39,10 +40,9 @@ final class OutboundQueueTest extends TestCase
 
         $result = $queue->work();
 
-        self::assertSame(1, $result['retried']);
-        self::assertSame('retry', $job->getStatus());
+        self::assertSame(1, $result['failed']);
+        self::assertSame('uncertain', $job->getStatus());
         self::assertSame('{"message":"Meta temporarily unavailable"}', $job->getLastError());
-        self::assertGreaterThan(new \DateTimeImmutable(), $job->getAvailableAt());
     }
 
     public function testWhatsAppJobCannotCompleteWithoutWamid(): void
@@ -54,7 +54,7 @@ final class OutboundQueueTest extends TestCase
         $result = $queue->work();
 
         self::assertSame(1, $result['failed']);
-        self::assertSame('failed', $job->getStatus());
+        self::assertSame('uncertain', $job->getStatus());
         self::assertNull($job->getMessageLogId());
         self::assertStringContainsString('messages[0].id', (string) $job->getLastError());
     }
@@ -80,7 +80,7 @@ final class OutboundQueueTest extends TestCase
         $result = $queue->work();
 
         self::assertSame(1, $result['recovered']);
-        self::assertSame('failed', $job->getStatus());
+        self::assertSame('uncertain', $job->getStatus());
         self::assertStringContainsString('uncertain', (string) $job->getLastError());
     }
 
@@ -93,7 +93,7 @@ final class OutboundQueueTest extends TestCase
         $entityManager->expects(self::never())->method('persist');
         $executor = $this->createMock(OutboundOperationExecutor::class);
         $executor->expects(self::never())->method('execute');
-        $queue = new OutboundQueue($repository, $entityManager, $executor, $this->createMock(Connection::class));
+        $queue = new OutboundQueue($repository, $entityManager, $executor, $this->createMock(Connection::class), new NoopInboxIntegration());
 
         self::assertSame($existing, $queue->enqueue(new MetaAsset(4), 'instagram_private_reply', ['recipient' => 'comment-1', 'text' => 'Report'], null, 1, 'igc:example'));
     }
@@ -114,6 +114,6 @@ final class OutboundQueueTest extends TestCase
         $connection->method('fetchAssociative')->willReturn(['external_id' => 'wamid.test', 'status' => 'accepted']);
         $connection->method('executeQuery')->willReturn($this->createMock(Result::class));
 
-        return [new OutboundQueue($repository, $entityManager, $executor, $connection), $executor];
+        return [new OutboundQueue($repository, $entityManager, $executor, $connection, new NoopInboxIntegration()), $executor];
     }
 }

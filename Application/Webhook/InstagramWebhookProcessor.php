@@ -19,6 +19,7 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessageRepository;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 
 final class InstagramWebhookProcessor
 {
@@ -34,6 +35,8 @@ final class InstagramWebhookProcessor
         private ConversationManager $conversations,
         private InstagramAccountResolver $accountResolver,
         private InstagramCommentAutomation $commentAutomation,
+        private InboxIntegrationInterface $inboxIntegration,
+        private \MauticPlugin\MauticMetaBundle\Application\Instagram\InstagramParticipantProfile $profiles,
     ) {
     }
 
@@ -71,10 +74,16 @@ final class InstagramWebhookProcessor
                         if ('comment' === $type && $existing->getAsset()->getId() === $asset->getId()) {
                             $identity = $this->identities->registerInteraction($asset, $recipient);
                             $this->entityManager->flush();
-                            $this->commentAutomation->handle($existing, $identity);
+                            $this->inboxIntegration->messagePersisted($existing);
+                            if ($this->inboxIntegration->automationAllowed($asset, $recipient)) {
+                                $this->commentAutomation->handle($existing, $identity);
+                            }
                         }
                         ++$ignored;
                         continue;
+                    }
+                    if ('comment' !== $type) {
+                        $item['contact']['profile'] = $this->profiles->resolve($asset, $recipient);
                     }
                     $username = isset($item['commenterName']) ? (string) $item['commenterName'] : null;
                     $identity = $this->identities->registerInteraction($asset, $recipient, $username, $this->contactMatcher->match($asset, $recipient));
@@ -82,10 +91,13 @@ final class InstagramWebhookProcessor
                     $this->entityManager->persist($log);
                     $this->entityManager->flush();
                     $this->conversations->record($log);
-                    if ('comment' === $type) {
+                    $this->inboxIntegration->messagePersisted($log);
+                    if ('comment' === $type && $this->inboxIntegration->automationAllowed($asset, $recipient)) {
                         $this->commentAutomation->handle($log, $identity);
                     }
-                    $this->campaigns->dispatch($log);
+                    if ($this->inboxIntegration->automationAllowed($asset, $recipient)) {
+                        $this->campaigns->dispatch($log);
+                    }
                     $this->adapters->dispatch($log, 'message.received');
                     ++$created;
                 } finally {

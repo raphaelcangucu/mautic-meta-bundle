@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.0
+
+- Add Facebook Messenger and feed comment processing, including comment edits and removals.
+- Integrate the optional native support inbox with human takeover checks for direct and queued automation.
+- Resolve participant names, handles and profile images with cached, non-blocking lookups.
+- Route human WhatsApp replies using the conversation identity and retain uncertain sends for review.
+- Validate the Meta unit suite: 79 tests, 218 assertions.
+
+
 ## 0.11.0 - 2026-09-13
 
 - Add native campaign decisions for Instagram comments filtered by account, exact media ID, and whole-word keyword, ignoring case and Portuguese accents.

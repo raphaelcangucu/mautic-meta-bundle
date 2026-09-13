@@ -16,6 +16,7 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessageRepository;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 
 final class WhatsAppWebhookProcessor
 {
@@ -30,6 +31,7 @@ final class WhatsAppWebhookProcessor
         private CampaignMessageDispatcher $campaigns,
         private WebhookAdapterDispatcher $adapters,
         private ConversationManager $conversations,
+        private InboxIntegrationInterface $inboxIntegration,
     ) {
     }
 
@@ -95,7 +97,10 @@ final class WhatsAppWebhookProcessor
         }
         foreach ($campaignMessages as $message) {
             $this->conversations->record($message);
-            $this->campaigns->dispatch($message);
+            $this->inboxIntegration->messagePersisted($message);
+            if ('inbound' !== $message->getDirection() || $this->inboxIntegration->automationAllowed($message->getAsset(), $message->getRecipient())) {
+                $this->campaigns->dispatch($message);
+            }
             $this->adapters->dispatch($message, 'inbound' === $message->getDirection() ? 'message.received' : match ($message->getStatus()) {
                 'delivered' => 'message.delivered', 'read' => 'message.read', 'failed' => 'message.failed', default => 'message.sent'
             });

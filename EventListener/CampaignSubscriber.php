@@ -26,6 +26,7 @@ use MauticPlugin\MauticMetaBundle\Form\Type\MetaMessageDecisionType;
 use MauticPlugin\MauticMetaBundle\Form\Type\WhatsAppCampaignActionType;
 use MauticPlugin\MauticMetaBundle\Form\Type\WhatsAppConsentCampaignActionType;
 use MauticPlugin\MauticMetaBundle\MetaEvents;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -41,6 +42,7 @@ final class CampaignSubscriber implements EventSubscriberInterface
         private LoggerInterface $logger,
         private WhatsAppConsentRegistrationService $consentRegistration,
         private InstagramCommentMatcher $commentMatcher,
+        private InboxIntegrationInterface $inboxIntegration,
     ) {}
 
     public static function getSubscribedEvents(): array
@@ -161,6 +163,7 @@ final class CampaignSubscriber implements EventSubscriberInterface
                         $event->pass($log);
                         continue;
                     }
+                    $this->assertAutomationAllowed($asset, $phone);
                     $result = $this->whatsApp->sendTemplate($asset, $phone, (string) ($properties['template_name'] ?? ''), (string) ($properties['language'] ?? 'pt_BR'), $components, $lead);
                 } else {
                     $text = $this->tokens->resolve((string) ($properties['message'] ?? ''), $fields);
@@ -170,6 +173,7 @@ final class CampaignSubscriber implements EventSubscriberInterface
                         $event->pass($log);
                         continue;
                     }
+                    $this->assertAutomationAllowed($asset, $phone);
                     $result = $this->whatsApp->sendText($asset, $phone, $text, false, $lead);
                 }
                 $log->appendToMetadata(['meta_message_id' => $result->messageId, 'meta_log_id' => $result->logId, 'meta_asset_id' => $asset->getId()]);
@@ -199,6 +203,7 @@ final class CampaignSubscriber implements EventSubscriberInterface
                     $event->pass($log);
                     continue;
                 }
+                $this->assertAutomationAllowed($asset, $recipient);
                 $sent = match ($properties['action'] ?? '') {
                     'private_reply' => $this->instagram->privateReply($asset, $recipient, $message, $lead),
                     'public_reply' => $this->instagram->publicReply($asset, $recipient, $message, $lead),
@@ -218,6 +223,13 @@ final class CampaignSubscriber implements EventSubscriberInterface
         $asset = $this->assets->find($id);
         if (!$asset instanceof MetaAsset) { throw new \InvalidArgumentException('Configured Meta asset was not found.'); }
         return $asset;
+    }
+
+    private function assertAutomationAllowed(MetaAsset $asset, string $recipient): void
+    {
+        if (!$this->inboxIntegration->automationAllowed($asset, $recipient)) {
+            throw new \DomainException('Automation paused while this conversation is assigned to human support.');
+        }
     }
 
     private function fail(PendingEvent $event, mixed $log, \Throwable $exception, ?\DateInterval $rescheduleInterval = null): void

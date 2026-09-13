@@ -14,6 +14,7 @@ use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 
 final class InstagramService
 {
@@ -26,6 +27,7 @@ final class InstagramService
         private ?ConversationManager $conversations = null,
         private ?InstagramAccountResolver $accountResolver = null,
         private ?InstagramPageConnectionResolver $pageConnections = null,
+        private ?InboxIntegrationInterface $inboxIntegration = null,
     ) {
     }
 
@@ -71,23 +73,23 @@ final class InstagramService
         return $this->graph->get($account->getConnection(), $mediaId.'/insights', ['metric' => implode(',', $metrics)]);
     }
 
-    public function privateReply(MetaAsset $account, string $commentId, string $text, ?Lead $contact = null): MetaMessage
+    public function privateReply(MetaAsset $account, string $commentId, string $text, ?Lead $contact = null, bool $human = false): MetaMessage
     {
         return $this->send($account, $commentId, 'private_reply', [
             'recipient' => ['comment_id' => $commentId], 'message' => ['text' => $this->text($text, 1000)],
-        ], $this->accountId($account).'/messages', $contact);
+        ], $this->accountId($account).'/messages', $contact, $human);
     }
 
-    public function directMessage(MetaAsset $account, string $instagramUserId, string $text, ?Lead $contact = null): MetaMessage
+    public function directMessage(MetaAsset $account, string $instagramUserId, string $text, ?Lead $contact = null, bool $human = false): MetaMessage
     {
         return $this->send($account, $instagramUserId, 'direct_message', [
             'recipient' => ['id' => $instagramUserId], 'message' => ['text' => $this->text($text, 1000)],
-        ], $this->accountId($account).'/messages', $contact);
+        ], $this->accountId($account).'/messages', $contact, $human);
     }
 
-    public function publicReply(MetaAsset $account, string $commentId, string $text, ?Lead $contact = null): MetaMessage
+    public function publicReply(MetaAsset $account, string $commentId, string $text, ?Lead $contact = null, bool $human = false): MetaMessage
     {
-        return $this->send($account, $commentId, 'comment_reply', ['message' => $this->text($text, 2200)], $commentId.'/replies', $contact);
+        return $this->send($account, $commentId, 'comment_reply', ['message' => $this->text($text, 2200)], $commentId.'/replies', $contact, $human);
     }
 
     public function conversations(MetaAsset $account, int $limit = 50, ?string $after = null): array
@@ -108,7 +110,7 @@ final class InstagramService
         return $this->graph->get($account->getConnection(), $conversationId, ['fields' => 'messages{id,created_time,from,to,message,attachments}']);
     }
 
-    private function send(MetaAsset $account, string $recipient, string $type, array $payload, string $path, ?Lead $contact): MetaMessage
+    private function send(MetaAsset $account, string $recipient, string $type, array $payload, string $path, ?Lead $contact, bool $human): MetaMessage
     {
         $this->assertAccount($account);
         $this->identities->assertChannelContactable($contact, 'instagram');
@@ -123,7 +125,8 @@ final class InstagramService
             if (null !== $this->pageConnections && in_array($type, ['private_reply', 'direct_message'], true)) {
                 $path = $this->pageConnections->pageId($account).'/messages';
             }
-            $response = $this->graph->post($connection, $path, $payload);
+            $send = fn (): array => $this->graph->post($connection, $path, $payload);
+            $response = $human || null === $this->inboxIntegration ? $send() : $this->inboxIntegration->runAutomationGuarded($account, $recipient, $send);
             $messageId = (string) ($response['message_id'] ?? $response['id'] ?? '');
             if ('' === $messageId) {
                 throw new \RuntimeException('Meta response did not contain an Instagram message ID.');

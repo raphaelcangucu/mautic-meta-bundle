@@ -6,6 +6,8 @@ use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\ServiceRepositor
 use Mautic\CoreBundle\DependencyInjection\MauticCoreExtension;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClient;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
+use MauticPlugin\MauticMetaBundle\Application\Support\NoopInboxIntegration;
 use MauticPlugin\MauticMetaBundle\Security\CredentialVault;
 use MauticPlugin\MauticMetaBundle\Security\WebhookSignatureVerifier;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -31,4 +33,5 @@ return function (ContainerConfigurator $configurator): void {
     $services->set(CredentialVault::class);
     $services->set(WebhookSignatureVerifier::class);
     $services->alias(MetaGraphClientInterface::class, MetaGraphClient::class);
+    $services->alias(InboxIntegrationInterface::class, NoopInboxIntegration::class);
 };

@@ -26,6 +26,7 @@ final class WebhookController
         private WhatsAppWebhookProcessor $whatsAppProcessor,
         private InstagramWebhookProcessor $instagramProcessor,
         private EntityManagerInterface $entityManager,
+        private \MauticPlugin\MauticMetaBundle\Application\Webhook\FacebookWebhookProcessor $facebookProcessor,
     ) {}
 
     public function handle(int $connectionId, Request $request): Response
@@ -53,7 +54,7 @@ final class WebhookController
             return new JsonResponse(['error' => 'Invalid JSON.'], Response::HTTP_BAD_REQUEST);
         }
 
-        if ('instagram' !== ($decoded['object'] ?? null)) {
+        if (!in_array($decoded['object'] ?? null, ['instagram', 'page'], true)) {
             return $this->ingestAndProcess($connection, $decoded);
         }
 
@@ -79,6 +80,7 @@ final class WebhookController
             try {
                 if ('whatsapp_business_account' === ($decoded['object'] ?? null)) { $processed = $this->whatsAppProcessor->process($decoded); }
                 elseif ('instagram' === ($decoded['object'] ?? null)) { $processed = $this->instagramProcessor->process($decoded, $connection); }
+                elseif ('page' === ($decoded['object'] ?? null)) { $processed = $this->facebookProcessor->process($decoded, $connection); }
                 else { $processed = ['ignored' => true]; }
                 $this->ingestor->complete((int) $ingested['eventId']);
             } catch (\Throwable $exception) {

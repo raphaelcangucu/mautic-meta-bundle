@@ -12,6 +12,7 @@ final class WebhookReplay
     public function __construct(
         private WhatsAppWebhookProcessor $whatsApp,
         private InstagramWebhookProcessor $instagram,
+        private FacebookWebhookProcessor $facebook,
         private WebhookIngestor $ingestor,
         private EntityManagerInterface $entityManager,
     ) {}
@@ -27,6 +28,7 @@ final class WebhookReplay
         try {
             $result = match ($event->getObjectType()) {
                 'whatsapp_business_account' => $this->whatsApp->process($event->getPayload()),
+                'page' => $this->facebook->process($event->getPayload(), $event->getConnection()),
                 'instagram' => $this->instagram->process($event->getPayload(), $event->getConnection()),
                 default => ['ignored' => true],
             };

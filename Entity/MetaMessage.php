@@ -231,6 +231,18 @@ class MetaMessage extends CommonEntity
         return $this;
     }
 
+    public function setDateAdded(\DateTimeInterface $value): self
+    {
+        $this->dateAdded = \DateTimeImmutable::createFromInterface($value);
+        return $this;
+    }
+
+    public function setDateModified(\DateTimeInterface $value): self
+    {
+        $this->dateModified = \DateTime::createFromInterface($value);
+        return $this;
+    }
+
     public function getDateAdded(): \DateTimeInterface
     {
         return $this->dateAdded;

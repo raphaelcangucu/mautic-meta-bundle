@@ -22,6 +22,6 @@ final class AssetTypeTest extends TestCase
         yield [AssetType::WhatsAppBusinessAccount, Channel::WhatsApp];
         yield [AssetType::WhatsAppPhoneNumber, Channel::WhatsApp];
         yield [AssetType::InstagramAccount, Channel::Instagram];
-        yield [AssetType::FacebookPage, Channel::Instagram];
+        yield [AssetType::FacebookPage, Channel::Facebook];
     }
 }

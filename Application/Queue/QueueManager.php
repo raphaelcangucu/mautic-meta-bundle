@@ -16,8 +16,8 @@ final class QueueManager
 
     public function retry(MetaOutboundJob $job): void
     {
-        if (str_starts_with((string) $job->getIdempotencyKey(), 'igc:')) {
-            throw new \DomainException('Automatic comment private replies cannot be retried without verifying the outcome with Meta.');
+        if (str_starts_with((string) $job->getIdempotencyKey(), 'igc:') || 'uncertain' === $job->getStatus()) {
+            throw new \DomainException('This operation has an uncertain outcome and cannot be retried blindly.');
         }
         if (!in_array($job->getStatus(), ['failed', 'cancelled'], true)) {
             throw new \DomainException('Only failed or cancelled jobs can be retried manually.');

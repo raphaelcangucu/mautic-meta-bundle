@@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 
 final class ConversationController extends AbstractController
 {
@@ -24,9 +25,13 @@ final class ConversationController extends AbstractController
         MetaConversationRepository $conversations,
         MetaMessageRepository $messages,
         ConversationManager $manager,
+        InboxIntegrationInterface $inboxIntegration,
     ): Response {
         if (!$permissions->isGranted('meta:messages:view')) {
             throw $this->createAccessDeniedException();
+        }
+        if ($inboxIntegration->ownsSupportInbox()) {
+            return $this->redirectToRoute('mautic_inbox_index');
         }
 
         $criteria = [];
@@ -72,9 +77,13 @@ final class ConversationController extends AbstractController
         CorePermissions $permissions,
         MetaConversationRepository $conversations,
         OutboundQueue $queue,
+        InboxIntegrationInterface $inboxIntegration,
     ): RedirectResponse {
         if (!$permissions->isGranted('meta:messages:create') || !$this->isCsrfTokenValid('meta_conversation_reply_'.$conversationId, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
+        }
+        if ($inboxIntegration->ownsSupportInbox()) {
+            throw $this->createAccessDeniedException('Use Atendimento para responder a esta conversa.');
         }
 
         $conversation = $conversations->find($conversationId);
@@ -112,9 +121,13 @@ final class ConversationController extends AbstractController
         CorePermissions $permissions,
         MetaConversationRepository $conversations,
         ConversationManager $manager,
+        InboxIntegrationInterface $inboxIntegration,
     ): RedirectResponse {
         if (!$permissions->isGranted('meta:messages:edit') || !$this->isCsrfTokenValid('meta_conversation_status_'.$conversationId, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
+        }
+        if ($inboxIntegration->ownsSupportInbox()) {
+            throw $this->createAccessDeniedException('Use Atendimento para alterar esta conversa.');
         }
 
         $conversation = $conversations->find($conversationId);
