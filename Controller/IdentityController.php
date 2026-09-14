@@ -17,32 +17,35 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaConsentSyncRun;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConsentSyncRunRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaContactIdentity;
 use MauticPlugin\MauticMetaBundle\Entity\MetaContactIdentityRepository;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Mautic\CoreBundle\Controller\CommonController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-final class IdentityController extends AbstractController
+final class IdentityController extends CommonController
 {
+    use MetaViewTrait;
+
     public function index(CorePermissions $permissions, MetaContactIdentityRepository $identities, MetaAssetRepository $assets, MetaConsentSyncRunRepository $runs, Request $request, int $page = 1): Response
     {
         if (!$permissions->isGranted('meta:messages:view')) { throw $this->createAccessDeniedException(); }
 
-        $page = max(1, $page);
-        $limit = max(5, min(100, (int) $request->getSession()->get('mautic.metaIdentities.limit', 30)));
+        $page = max(1, $request->query->getInt('page', $page));
+        $limit = in_array($request->query->getInt('limit'), [25, 50, 100], true) ? $request->query->getInt('limit') : 25;
         $search = trim((string) $request->query->get('search', ''));
         $assetId = max(0, (int) $request->query->get('asset', 0)) ?: null;
-        $channel = in_array($request->query->get('channel'), ['whatsapp', 'instagram'], true) ? (string) $request->query->get('channel') : null;
+        $channel = in_array($request->query->get('channel'), ['whatsapp', 'instagram', 'facebook'], true) ? (string) $request->query->get('channel') : null;
         $consent = ConsentStatus::tryFrom((string) $request->query->get('consent', ''))?->value;
-        $identityPage = $identities->findPage($search, $assetId, $channel, $consent, ($page - 1) * $limit, $limit);
+        $identityPage = $identities->findPage($search, $assetId, $channel, $consent, ($page - 1) * $limit, $limit, $request->query->getString('linked'));
         $lastPage = max(1, (int) ceil($identityPage['total'] / $limit));
         if ($page > $lastPage) {
-            return $this->redirectToRoute('mautic_meta_identities', ['page' => $lastPage, 'search' => $search, 'asset' => $assetId, 'consent' => $consent]);
+            return $this->redirectToRoute('mautic_meta_identities', ['page' => $lastPage, 'search' => $search, 'asset' => $assetId, 'consent' => $consent, 'channel' => $channel, 'limit' => $limit, 'linked' => $request->query->getString('linked')]);
         }
         $allAssets = $assets->findAll();
 
-        return $this->render('@MauticMeta/Identity/index.html.twig', [
+        return $this->metaView('@MauticMeta/Identity/index.html.twig', [
             'identities' => $identityPage['items'],
+            'listing' => ['total' => $identityPage['total'], 'page' => $page, 'pages' => $lastPage, 'limit' => $limit, 'pageKey' => 'page'],
             'identityTotal' => $identityPage['total'], 'identityPage' => $page, 'identityLimit' => $limit,
             'identityFilters' => ['search' => $search, 'asset' => $assetId, 'channel' => $channel, 'consent' => $consent],
             'allAssets' => $allAssets,

@@ -22,10 +22,10 @@ final class WhatsAppTemplateType extends AbstractType
         $editing = (bool) $options['editing'];
         $builder
             ->add('business_account_id', ChoiceType::class, ['label' => 'WhatsApp Business Account', 'choices' => $options['business_accounts'], 'disabled' => $editing, 'constraints' => [new NotBlank()]])
-            ->add('name', TextType::class, ['label' => 'Template name', 'disabled' => $editing, 'constraints' => [new NotBlank()]])
-            ->add('language', TextType::class, ['label' => 'Language', 'disabled' => $editing, 'constraints' => [new NotBlank()]])
-            ->add('category', ChoiceType::class, ['label' => 'Category', 'choices' => ['Marketing' => 'MARKETING', 'Utility' => 'UTILITY', 'Authentication' => 'AUTHENTICATION']])
-            ->add('components_json', TextareaType::class, ['label' => 'Components (JSON)', 'attr' => ['rows' => 16, 'class' => 'form-control code-editor'], 'constraints' => [new NotBlank()]]);
+            ->add('name', TextType::class, ['label' => 'Nome do modelo', 'disabled' => $editing, 'constraints' => [new NotBlank()]])
+            ->add('language', TextType::class, ['label' => 'Idioma', 'disabled' => $editing, 'constraints' => [new NotBlank()]])
+            ->add('category', ChoiceType::class, ['label' => 'Categoria', 'choices' => ['Marketing' => 'MARKETING', 'Utility' => 'UTILITY', 'Authentication' => 'AUTHENTICATION']])
+            ->add('components_json', TextareaType::class, ['label' => 'Componentes (JSON)', 'attr' => ['rows' => 16, 'class' => 'form-control code-editor'], 'constraints' => [new NotBlank()]]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void

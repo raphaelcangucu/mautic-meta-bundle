@@ -1,0 +1,5 @@
+{% set key = status|default('unknown')|lower %}
+{% set labels = {active:'Ativa no cadastro',inactive:'Inativa',error:'Erro',pending:'Pendente',queued:'Na fila',retry:'Nova tentativa',failed:'Falha',completed:'Concluído',cancelled:'Cancelado',received:'Recebido',processed:'Processado',accepted:'Aceito pela Meta',delivered:'Entregue',read:'Lido',sent:'Enviado',approved:'Aprovado',rejected:'Rejeitado',paused:'Pausado',disabled:'Desativado',unknown:'Não informado'} %}
+{% set tone = key in ['failed','error','rejected'] ? 'danger' : (key in ['active','completed','processed','delivered','approved'] ? 'success' : (key in ['pending','queued','retry','paused'] ? 'warning' : (key in ['received','accepted','read','sent'] ? 'info' : 'neutral'))) %}
+{% set icon = tone == 'danger' ? 'ri-error-warning-line' : (tone == 'success' ? 'ri-checkbox-circle-line' : (tone == 'warning' ? 'ri-time-line' : (key == 'read' ? 'ri-check-double-line' : 'ri-information-line'))) %}
+<span class="meta-chip meta-chip-{{ tone }}"><i class="{{ icon }}" aria-hidden="true"></i>{{ labels[key]|default(status) }}</span>

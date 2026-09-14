@@ -30,8 +30,8 @@ final class MetaConnectionType extends AbstractType
             ->add('name', TextType::class, $required + ['label' => 'mautic.core.name'])
             ->add('app_id', TextType::class, $required + ['label' => 'Meta App ID'])
             ->add('app_secret', PasswordType::class, $secret + ['label' => 'Meta App Secret'])
-            ->add('access_token', PasswordType::class, $secret + ['label' => 'System User Access Token'])
-            ->add('verify_token', PasswordType::class, $secret + ['label' => 'Webhook Verify Token'])
+            ->add('access_token', PasswordType::class, $secret + ['label' => 'Token do usuário de sistema'])
+            ->add('verify_token', PasswordType::class, $secret + ['label' => 'Token de verificação do webhook'])
             ->add('consent_source_url', TextType::class, [
                 'required' => false,
                 'label' => 'Landing consent evidence URL',

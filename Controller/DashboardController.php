@@ -11,26 +11,39 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaContactIdentityRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessageRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaWebhookEventRepository;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Mautic\CoreBundle\Controller\CommonController;
 use Symfony\Component\HttpFoundation\Response;
 
-final class DashboardController extends AbstractController
+final class DashboardController extends CommonController
 {
-    public function index(CorePermissions $permissions, MetaConnectionRepository $connections, MetaAssetRepository $assets, MetaWebhookEventRepository $events, MetaMessageRepository $messages, MetaContactIdentityRepository $identities, MetaOutboundJobRepository $jobs): Response
+    use MetaViewTrait;
+
+    public function index(CorePermissions $permissions, MetaConnectionRepository $connections, MetaAssetRepository $assets, MetaWebhookEventRepository $events, MetaMessageRepository $messages, MetaContactIdentityRepository $identities, MetaOutboundJobRepository $jobs, \Symfony\Component\HttpFoundation\Request $request): Response
     {
         if (!$permissions->isGranted('meta:connections:view')) {
             throw $this->createAccessDeniedException();
         }
 
-        return $this->render('@MauticMeta/Dashboard/index.html.twig', [
+        $assetId = (int) $request->query->getString('asset');
+        $period = $request->query->getString('period', 'all');
+        $days = ['7' => 7, '30' => 30][$period] ?? null;
+        $countActivity = static function ($repository, ?array $statuses = null) use ($assetId, $days): int {
+            $q = $repository->createQueryBuilder('r')->select('COUNT(r.id)');
+            if ($assetId > 0) { $q->andWhere('IDENTITY(r.asset) = :asset')->setParameter('asset', $assetId); }
+            if ($days) { $q->andWhere('r.dateAdded >= :since')->setParameter('since', new \DateTimeImmutable('today -'.$days.' days')); }
+            if ($statuses) { $q->andWhere('r.status IN (:statuses)')->setParameter('statuses', $statuses); }
+            return (int) $q->getQuery()->getSingleScalarResult();
+        };
+        return $this->metaView('@MauticMeta/Dashboard/index.html.twig', [
             'connectionCount' => $connections->count([]),
             'assetCount'      => $assets->count([]),
             'eventCount'      => $events->count([]),
             'webhookFailures' => $events->count(['status' => 'failed']),
-            'messageCount' => $messages->count([]),
+            'allAssets' => $assets->findBy([], ['name' => 'ASC']),
+            'messageCount' => $countActivity($messages),
             'identityCount' => $identities->count([]),
-            'queuePending' => $jobs->count(['status' => 'pending']) + $jobs->count(['status' => 'retry']),
-            'queueFailed' => $jobs->count(['status' => 'failed']),
+            'queuePending' => $countActivity($jobs, ['pending', 'retry']),
+            'queueFailed' => $countActivity($jobs, ['failed']),
         ]);
     }
 }

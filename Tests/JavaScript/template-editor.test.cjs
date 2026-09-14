@@ -1,0 +1,13 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const {parseHTML}=require('linkedom');
+const {document,window}=parseHTML(`<html><body><div class="meta-ui"><form data-meta-template><textarea name="whats_app_template[components_json]"></textarea><div data-template-visual hidden><textarea id="meta-template-body"></textarea><input id="meta-template-footer"><div id="meta-template-examples"></div></div><details data-template-advanced open></details><div id="meta-template-error" hidden></div><div id="meta-template-preview"></div></form></div></body></html>`);
+const json=document.querySelector('[name]');
+json.value=JSON.stringify([{type:'HEADER',format:'IMAGE',example:{header_handle:['keep-me']}},{type:'BODY',text:'Oi {{1}}',example:{body_text:[['Raphael']]}},{type:'BUTTONS',buttons:[{type:'URL',text:'Abrir',url:'https://example.com'}]}]);
+window.Mautic={};window.confirm=()=>true;
+vm.runInNewContext(fs.readFileSync(require('path').join(__dirname,'../../Assets/js/meta.js'),'utf8'),{window,document,URL,location:{pathname:'/s/meta/whatsapp/templates/1/edit',href:'https://example.com/s/meta/whatsapp/templates/1/edit'},sessionStorage:{getItem:()=>null}});
+window.Mautic.metaOnLoad();
+assert.match(document.querySelector('#meta-template-preview').textContent,/Oi Raphael/);
+const body=document.querySelector('#meta-template-body');body.value='Olá {{1}} <img src=x onerror=alert(1)>';body.dispatchEvent(new window.Event('input'));
+const updated=JSON.parse(json.value);assert.equal(updated[0].example.header_handle[0],'keep-me');assert.equal(updated[2].buttons[0].url,'https://example.com');assert.equal(document.querySelectorAll('#meta-template-preview img').length,0);
+json.value='{invalid';json.dispatchEvent(new window.Event('input'));assert.equal(document.querySelector('#meta-template-error').hidden,false);assert.equal(document.querySelector('[data-template-visual]').hidden,true);assert.equal(json.value,'{invalid');
+console.log('Template editor: preview, component preservation, safe text and invalid JSON passed');

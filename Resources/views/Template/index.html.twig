@@ -1,20 +1,26 @@
-{% extends '@MauticCore/Default/content.html.twig' %}
+{% extends '@MauticMeta/Shared/layout.html.twig' %}
 {% block mauticContent %}meta{% endblock %}
-{% block headerTitle %}{{ 'mautic.meta.menu.templates'|trans }}{% endblock %}
-{% block content %}
+{% block headerTitle %}Modelos WhatsApp{% endblock %}
+{% block metaBody %}
+<div class="meta-head"><div><h2>Modelos WhatsApp</h2><p>Conteúdo e aprovação dos modelos de mensagem.</p></div></div>
+<form method="get" class="meta-filters"><label>Buscar<input class="form-control" name="search" value="{{ app.request.query.get('search') }}" placeholder="Nome do modelo"></label>
+
+<label>Conta<select class="form-control" name="asset"><option value="">Todas</option>{% for a in businessAccounts %}<option value="{{ a.id }}" {{ app.request.query.get('asset') == a.id ? 'selected' : '' }}>{{ a.name }}</option>{% endfor %}</select></label>
+<label>Situação<select class="form-control" name="status"><option value="">Todas</option>{% for s in ['APPROVED','PENDING','REJECTED','PAUSED','DISABLED'] %}<option value="{{ s }}" {{ app.request.query.get('status') == s ? 'selected' : '' }}>{{ {'APPROVED':'Aprovado','PENDING':'Em análise','REJECTED':'Rejeitado','PAUSED':'Pausado','DISABLED':'Desativado'}[s] }}</option>{% endfor %}</select></label>
+<label>Idioma<input name="language" class="form-control" value="{{ app.request.query.get('language') }}" placeholder="Ex.: pt_BR"></label><label>Categoria<select name="category" class="form-control"><option value="">Todas</option>{% for c in ['MARKETING','UTILITY','AUTHENTICATION'] %}<option {{ app.request.query.get('category') == c ? 'selected' : '' }}>{{ c }}</option>{% endfor %}</select></label>{{ include('@MauticMeta/Shared/limit.html.twig') }}</form>{{ include('@MauticMeta/Shared/filter_state.html.twig') }}
 <div class="panel panel-default ma-md">
     <div class="panel-heading">
-        <a class="btn btn-success btn-sm" href="{{ path('mautic_meta_template_new') }}">Create template</a>
+        <a class="btn btn-success btn-sm" href="{{ path('mautic_meta_template_new') }}">Criar modelo</a>
         {% for asset in businessAccounts %}
         <form method="post" action="{{ path('mautic_meta_templates_sync', {assetId: asset.id}) }}" style="display:inline">
             <input type="hidden" name="_token" value="{{ csrf_token('meta_template_sync_' ~ asset.id) }}">
-            <button class="btn btn-primary btn-sm" type="submit">Sync {{ asset.name }}</button>
+            <button class="btn btn-primary btn-sm" type="submit">Sincronizar {{ asset.name }}</button>
         </form>
         {% endfor %}
     </div>
     <div class="table-responsive"><table class="table table-hover">
-        <thead><tr><th>Name</th><th>Language</th><th>WABA</th><th>Category</th><th>Status</th><th>Quality</th><th>Last sync</th><th></th></tr></thead>
-        <tbody>{% for template in templates %}<tr><td>{{ template.name }}</td><td>{{ template.language }}</td><td>{{ template.businessAccount.name }}</td><td>{{ template.category }}</td><td>{{ template.status }}</td><td>{{ template.qualityScore }}</td><td>{{ template.lastSyncedAt|date('Y-m-d H:i:s') }}</td><td><a class="btn btn-default btn-xs" href="{{ path('mautic_meta_template_edit', {templateId: template.id}) }}">Edit</a><form method="post" action="{{ path('mautic_meta_template_delete', {templateId: template.id}) }}" style="display:inline" onsubmit="return confirm('Delete this template from Meta?')"><input type="hidden" name="_token" value="{{ csrf_token('meta_template_delete_' ~ template.id) }}"><button class="btn btn-danger btn-xs" type="submit">Delete</button></form></td></tr>{% else %}<tr><td colspan="8" class="text-center text-muted">No synchronized templates.</td></tr>{% endfor %}</tbody>
-    </table></div>
+        <thead><tr><th>Modelo</th><th>Idioma</th><th>Conta</th><th>Categoria</th><th>Situação</th><th>Qualidade</th><th>Sincronização</th><th></th></tr></thead>
+        <tbody>{% for template in listing.items %}<tr><td><strong>{{ template.name }}</strong>{% if template.status == 'REJECTED' and template.rejectedReason and template.rejectedReason != 'NONE' %}<details><summary>Motivo da rejeição</summary>{{ template.rejectedReason }}</details>{% endif %}</td><td>{{ template.language }}</td><td>{{ template.businessAccount.name }}</td><td>{{ template.category }}</td><td><span class="meta-badge {{ template.status }}">{{ {APPROVED:"Aprovado",REJECTED:"Rejeitado",PENDING:"Em análise"}[template.status]|default(template.status) }}</span></td><td>{{ template.qualityScore and template.qualityScore != 'UNKNOWN' ? template.qualityScore : 'Não informada' }}</td><td>{{ template.lastSyncedAt ? template.lastSyncedAt|date('d/m/Y H:i') : 'Nunca' }}</td><td><a class="btn btn-default btn-xs" href="{{ path('mautic_meta_template_edit', {templateId: template.id}) }}">Editar e visualizar</a><details><summary>Mais opções</summary><form method="post" action="{{ path('mautic_meta_template_delete', {templateId: template.id}) }}" style="display:inline" onsubmit="return confirm('Delete this template from Meta?')"><input type="hidden" name="_token" value="{{ csrf_token('meta_template_delete_' ~ template.id) }}"><button class="btn btn-danger btn-xs" type="submit">Excluir</button></form></details></td></tr>{% else %}<tr><td colspan="8" class="text-center text-muted">Nenhum modelo encontrado.</td></tr>{% endfor %}</tbody>
+    </table></div>{{ include('@MauticMeta/Shared/pagination.html.twig') }}
 </div>
 {% endblock %}

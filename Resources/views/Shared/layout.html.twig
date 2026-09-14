@@ -1,0 +1,12 @@
+{% extends '@MauticCore/Default/content.html.twig' %}
+{% block mauticContent %}meta{% endblock %}
+{% block content %}
+{{ includeStylesheet('plugins/MauticMetaBundle/Assets/css/meta.css?v=20260913-ui3') }}
+<div class="meta-ui">
+{% set currentRoute = app.request.attributes.get('_route') %}
+{% set activeRoute = currentRoute starts with 'mautic_meta_connection' or currentRoute starts with 'mautic_meta_asset' ? 'mautic_meta_connections' : (currentRoute starts with 'mautic_meta_template' ? 'mautic_meta_templates' : currentRoute) %}
+<nav class="meta-nav" aria-label="Conector Meta">{% for route, label in {'mautic_meta_dashboard':'Visão geral','mautic_meta_connections':'Conexões e contas','mautic_meta_templates':'Modelos WhatsApp','mautic_meta_identities':'Identidades e contatos','mautic_meta_operations':'Operações'} %}<a href="{{ path(route) }}" class="{{ activeRoute == route ? 'selected' : '' }}">{{ label }}</a>{% endfor %}</nav>
+{% block metaBody %}{% endblock %}
+</div>
+{{ includeScript('plugins/MauticMetaBundle/Assets/js/meta.js?v=20260913-ui3', 'metaOnLoad', 'metaOnLoad') }}
+{% endblock %}

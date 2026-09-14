@@ -15,25 +15,48 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaWebhookEvent;
 use MauticPlugin\MauticMetaBundle\Entity\MetaWebhookEventRepository;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Mautic\CoreBundle\Controller\CommonController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-final class OperationsController extends AbstractController
+final class OperationsController extends CommonController
 {
-    public function index(CorePermissions $permissions, MetaOutboundJobRepository $jobs, MetaMessageRepository $messages, MetaWebhookEventRepository $events, MetaAdapterDeliveryRepository $deliveries): Response
+    use MetaViewTrait;
+
+    public function index(CorePermissions $permissions, MetaOutboundJobRepository $jobs, MetaMessageRepository $messages, MetaWebhookEventRepository $events, MetaAdapterDeliveryRepository $deliveries, Request $request, \MauticPlugin\MauticMetaBundle\Application\Ui\ListPage $paging, \MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository $assets): Response
     {
         if (!$permissions->isGranted('meta:messages:view') || !$permissions->isGranted('meta:webhooks:view')) {
             throw $this->createAccessDeniedException();
         }
 
-        return $this->render('@MauticMeta/Operations/index.html.twig', [
-            'jobs' => $jobs->findBy([], ['dateAdded' => 'DESC'], 100),
-            'messages' => $messages->findBy([], ['dateAdded' => 'DESC'], 100),
-            'events' => $events->findBy([], ['receivedAt' => 'DESC'], 100),
-            'deliveries' => $deliveries->findBy([], ['dateAdded' => 'DESC'], 100),
-        ]);
+        $tab = $request->query->getString('tab', 'jobs');
+        if (!in_array($tab, ['jobs', 'messages', 'events', 'deliveries'], true)) { $tab = 'jobs'; }
+        $repository = match ($tab) { 'messages' => $messages, 'events' => $events, 'deliveries' => $deliveries, default => $jobs };
+        $dateField = 'events' === $tab ? 'receivedAt' : 'dateAdded';
+        $query = $repository->createQueryBuilder('r')->orderBy('r.'.$dateField, 'DESC')->addOrderBy('r.id', 'DESC');
+        if ($status = $request->query->getString('status')) {
+            if ('queued' === $status && 'jobs' === $tab) { $query->andWhere('r.status IN (:statuses)')->setParameter('statuses', ['pending', 'retry']); }
+            else { $query->andWhere('r.status = :status')->setParameter('status', $status); }
+        }
+        if (in_array($tab, ['jobs', 'messages'], true)) {
+            $query->join('r.asset', 'a')->addSelect('a');
+            if ($asset = (int) $request->query->getString('asset')) { $query->andWhere('a.id = :asset')->setParameter('asset', $asset); }
+            if ($channel = $request->query->getString('channel')) {
+                $type = ['whatsapp' => 'whatsapp_phone_number', 'instagram' => 'instagram_account', 'facebook' => 'facebook_page'][$channel] ?? '';
+                $query->andWhere('a.type = :type')->setParameter('type', $type);
+            }
+            if ($operation = $request->query->getString('operation')) { $query->andWhere('r.'.('jobs' === $tab ? 'operation' : 'messageType').' = :operation')->setParameter('operation', $operation); }
+        }
+        foreach (['from' => '>=', 'to' => '<'] as $key => $operator) {
+            $value = $request->query->getString($key);
+            $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+            if ($date && $date->format('Y-m-d') === $value) {
+                $query->andWhere('r.'.$dateField.' '.$operator.' :'.$key)->setParameter($key, 'to' === $key ? $date->modify('+1 day') : $date);
+            }
+        }
+        return $this->metaView('@MauticMeta/Operations/index.html.twig', ['tab' => $tab, 'listing' => $paging->paginate($query, $request, $tab.'_page'), 'allAssets' => $assets->findBy([], ['name' => 'ASC'])]);
+
     }
 
     public function retryAdapter(int $deliveryId, Request $request, CorePermissions $permissions, MetaAdapterDeliveryRepository $deliveries, EntityManagerInterface $entityManager): RedirectResponse

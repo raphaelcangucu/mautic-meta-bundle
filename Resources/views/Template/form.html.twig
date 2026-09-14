@@ -1,12 +1,2 @@
-{% extends '@MauticCore/Default/content.html.twig' %}
-{% block mauticContent %}meta{% endblock %}
-{% block headerTitle %}{{ editing ? 'Edit WhatsApp template' : 'Create WhatsApp template' }}{% endblock %}
-{% block content %}
-<div class="panel panel-default ma-md"><div class="panel-body">
-    <p class="text-muted">The template is submitted directly to Meta. Components must be a JSON array using the official WhatsApp template component format.</p>
-    {{ form_start(form) }}{{ form_widget(form) }}
-    <button type="submit" class="btn btn-primary">{{ 'mautic.core.form.save'|trans }}</button>
-    <a class="btn btn-default" href="{{ path('mautic_meta_templates') }}">{{ 'mautic.core.form.cancel'|trans }}</a>
-    {{ form_end(form) }}
-</div></div>
-{% endblock %}
+{% extends '@MauticMeta/Shared/layout.html.twig' %}{% block headerTitle %}{{ editing ? 'Editar modelo WhatsApp' : 'Criar modelo WhatsApp' }}{% endblock %}{% block metaBody %}<div class="meta-head"><div><h2>{{ editing ? 'Editar modelo' : 'Novo modelo WhatsApp' }}</h2><p>Revise o conteúdo antes de enviar o modelo à Meta.</p></div><a class="btn btn-default" data-meta-back href="{{ path('mautic_meta_templates') }}">Voltar aos modelos</a></div>
+{{ form_start(form, {attr:{class:'meta-form','data-meta-template':''}}) }}{{ form_errors(form) }}<div class="meta-split"><div class="meta-box meta-pad"><div class="meta-fields">{{ form_row(form.business_account_id) }}{{ form_row(form.name) }}{{ form_row(form.language) }}{{ form_row(form.category) }}</div><div data-template-visual hidden><h3>Conteúdo da mensagem</h3><label for="meta-template-body">Texto principal</label><textarea id="meta-template-body" class="form-control" rows="6"></textarea><div id="meta-template-examples"></div><label for="meta-template-footer">Rodapé</label><input id="meta-template-footer" class="form-control"><p>Outros componentes existentes são preservados na configuração avançada.</p></div><details data-template-advanced open><summary>Configuração avançada (JSON)</summary>{{ form_row(form.components_json) }}</details><div id="meta-template-error" class="meta-notice" role="alert" hidden></div><button type="submit" class="btn btn-primary">Enviar para análise da Meta</button></div><aside class="meta-box meta-sticky"><div class="meta-boxhead"><strong>Prévia da mensagem</strong></div><div class="meta-chat"><div class="meta-bubble" id="meta-template-preview">Carregando prévia…</div></div><div class="meta-pad"><small>A aparência final e a aprovação dependem da Meta. Mídia e componentes especiais aparecem descritos na prévia.</small></div></aside></div>{{ form_end(form) }}{% endblock %}

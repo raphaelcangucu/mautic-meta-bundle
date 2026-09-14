@@ -14,21 +14,30 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnectionRepository;
 use MauticPlugin\MauticMetaBundle\Form\Type\MetaAssetType;
 use MauticPlugin\MauticMetaBundle\Form\Type\MetaConnectionType;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Mautic\CoreBundle\Controller\CommonController;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-final class ConnectionController extends AbstractController
+final class ConnectionController extends CommonController
 {
-    public function index(CorePermissions $permissions, MetaConnectionRepository $repository): Response
+    use MetaViewTrait;
+
+    public function index(CorePermissions $permissions, MetaConnectionRepository $repository, MetaAssetRepository $assets, Request $request, \MauticPlugin\MauticMetaBundle\Application\Ui\ListPage $paging): Response
     {
         if (!$permissions->isGranted('meta:connections:view')) {
             throw $this->createAccessDeniedException();
         }
 
-        return $this->render('@MauticMeta/Connection/index.html.twig', ['connections' => $repository->findBy([], ['name' => 'ASC'])]);
+        $query = $assets->createQueryBuilder('a')->join('a.connection', 'c')->addSelect('c')->orderBy('c.name', 'ASC')->addOrderBy('a.name', 'ASC')->addOrderBy('a.id', 'ASC');
+        if ($search = trim($request->query->getString('search'))) {
+            $query->andWhere('LOWER(a.name) LIKE :search OR LOWER(a.username) LIKE :search OR a.phoneNumber LIKE :search OR LOWER(c.name) LIKE :search')->setParameter('search', '%'.mb_strtolower($search).'%');
+        }
+        foreach (['type' => 'a.type', 'status' => 'a.status', 'connection' => 'c.id'] as $key => $field) {
+            if ('' !== $request->query->getString($key)) { $query->andWhere($field.' = :'.$key)->setParameter($key, $request->query->getString($key)); }
+        }
+        return $this->metaView('@MauticMeta/Connection/index.html.twig', ['connections' => $repository->findBy([], ['name' => 'ASC']), 'listing' => $paging->paginate($query, $request)]);
     }
 
     public function new(Request $request, CorePermissions $permissions, ConnectionManager $manager): Response
@@ -50,7 +59,7 @@ final class ConnectionController extends AbstractController
             }
         }
 
-        return $this->render('@MauticMeta/Connection/form.html.twig', ['form' => $form]);
+        return $this->metaView('@MauticMeta/Connection/form.html.twig', ['form' => $form]);
     }
 
     public function edit(int $connectionId, Request $request, CorePermissions $permissions, MetaConnectionRepository $connections, ConnectionManager $manager): Response
@@ -77,7 +86,7 @@ final class ConnectionController extends AbstractController
             }
         }
 
-        return $this->render('@MauticMeta/Connection/form.html.twig', ['form' => $form, 'connection' => $connection]);
+        return $this->metaView('@MauticMeta/Connection/form.html.twig', ['form' => $form, 'connection' => $connection]);
     }
 
     private function adapterJson(MetaConnection $connection): string
@@ -120,7 +129,7 @@ final class ConnectionController extends AbstractController
             return $this->redirectToRoute('mautic_meta_connections');
         }
 
-        return $this->render('@MauticMeta/Connection/asset_form.html.twig', ['form' => $form, 'connection' => $connection]);
+        return $this->metaView('@MauticMeta/Connection/asset_form.html.twig', ['form' => $form, 'connection' => $connection]);
     }
 
     public function editAsset(int $assetId, Request $request, CorePermissions $permissions, MetaAssetRepository $assets, AssetManager $manager): Response
@@ -151,7 +160,7 @@ final class ConnectionController extends AbstractController
             return $this->redirectToRoute('mautic_meta_connections');
         }
 
-        return $this->render('@MauticMeta/Connection/asset_form.html.twig', ['form' => $form, 'connection' => $asset->getConnection(), 'asset' => $asset]);
+        return $this->metaView('@MauticMeta/Connection/asset_form.html.twig', ['form' => $form, 'connection' => $asset->getConnection(), 'asset' => $asset]);
     }
 
     public function deleteAsset(int $assetId, Request $request, CorePermissions $permissions, MetaAssetRepository $assets, AssetManager $manager): RedirectResponse

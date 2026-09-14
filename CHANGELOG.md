@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.1
+
+- Redesign Meta administration with Mautic colors, shared navigation and channel/status/type badges.
+- Add server-side filters and pagination (25, 50 or 100 rows) for account, template, identity and operations lists.
+- Fix native AJAX navigation and empty account filters; preserve list context when returning from forms.
+- Add channel-specific forms and a safe WhatsApp template preview that preserves advanced components.
+- Align account status columns and preserve identifiers in horizontally scrollable tables.
+- Add real UI screenshots, interface documentation, functional navigation tests and template editor checks.
+- Backward-compatible with Inbox 1.0.x; no database migration.
+
 ## 0.12.0
 
 - Add Facebook Messenger and feed comment processing, including comment edits and removals.

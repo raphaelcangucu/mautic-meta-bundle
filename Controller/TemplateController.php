@@ -12,21 +12,28 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository;
 use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplate;
 use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplateRepository;
 use MauticPlugin\MauticMetaBundle\Form\Type\WhatsAppTemplateType;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Mautic\CoreBundle\Controller\CommonController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-final class TemplateController extends AbstractController
+final class TemplateController extends CommonController
 {
-    public function index(CorePermissions $permissions, WhatsAppTemplateRepository $templates, MetaAssetRepository $assets): Response
+    use MetaViewTrait;
+
+    public function index(CorePermissions $permissions, WhatsAppTemplateRepository $templates, MetaAssetRepository $assets, Request $request, \MauticPlugin\MauticMetaBundle\Application\Ui\ListPage $paging): Response
     {
         if (!$permissions->isGranted('meta:templates:view')) {
             throw $this->createAccessDeniedException();
         }
 
-        return $this->render('@MauticMeta/Template/index.html.twig', [
-            'templates' => $templates->findBy([], ['name' => 'ASC', 'language' => 'ASC']),
+        $query = $templates->createQueryBuilder('t')->join('t.businessAccount', 'a')->addSelect('a')->orderBy('t.name', 'ASC')->addOrderBy('t.id', 'ASC');
+        if ($search = trim($request->query->getString('search'))) { $query->andWhere('LOWER(t.name) LIKE :search')->setParameter('search', '%'.mb_strtolower($search).'%'); }
+        foreach (['status' => 't.status', 'language' => 't.language', 'category' => 't.category', 'asset' => 'a.id'] as $key => $field) {
+            if ('' !== $request->query->getString($key)) { $query->andWhere($field.' = :'.$key)->setParameter($key, $request->query->getString($key)); }
+        }
+        return $this->metaView('@MauticMeta/Template/index.html.twig', [
+            'listing' => $paging->paginate($query, $request),
             'businessAccounts' => $assets->findBy(['type' => AssetType::WhatsAppBusinessAccount->value, 'isPublished' => true], ['name' => 'ASC']),
         ]);
     }
@@ -64,7 +71,7 @@ final class TemplateController extends AbstractController
             } catch (\Throwable $exception) { $this->addFlash('error', $exception->getMessage()); }
         }
 
-        return $this->render('@MauticMeta/Template/form.html.twig', ['form' => $form, 'editing' => false]);
+        return $this->metaView('@MauticMeta/Template/form.html.twig', ['form' => $form, 'editing' => false]);
     }
 
     public function edit(int $templateId, Request $request, CorePermissions $permissions, WhatsAppTemplateRepository $templates, MetaAssetRepository $assets, WhatsAppTemplateManager $manager): Response
@@ -85,7 +92,7 @@ final class TemplateController extends AbstractController
             } catch (\Throwable $exception) { $this->addFlash('error', $exception->getMessage()); }
         }
 
-        return $this->render('@MauticMeta/Template/form.html.twig', ['form' => $form, 'editing' => true]);
+        return $this->metaView('@MauticMeta/Template/form.html.twig', ['form' => $form, 'editing' => true]);
     }
 
     public function delete(int $templateId, Request $request, CorePermissions $permissions, WhatsAppTemplateRepository $templates, WhatsAppTemplateManager $manager): RedirectResponse

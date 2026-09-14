@@ -1,34 +1,7 @@
-{% extends '@MauticCore/Default/content.html.twig' %}
-{% block mauticContent %}meta{% endblock %}
-{% block headerTitle %}{{ 'mautic.meta.menu.connections'|trans }}{% endblock %}
-{% block content %}
-<div class="panel panel-default ma-md">
-    <div class="panel-heading"><a class="btn btn-primary" href="{{ path('mautic_meta_connection_new') }}">{{ 'mautic.meta.connection.new'|trans }}</a></div>
-    <div class="table-responsive">
-        <table class="table table-hover">
-            <thead><tr><th>{{ 'mautic.core.name'|trans }}</th><th>App ID</th><th>Status</th><th>Graph API</th><th>{{ 'mautic.meta.assets'|trans }}</th><th></th></tr></thead>
-            <tbody>
-            {% for connection in connections %}
-                <tr>
-                    <td>{{ connection.name }} <a class="btn btn-xs btn-default pull-right" href="{{ path('mautic_meta_asset_new', {connectionId: connection.id}) }}">{{ 'mautic.meta.asset.add'|trans }}</a><br><small class="text-muted">Webhook: <code>{{ url('mautic_meta_webhook', {connectionId: connection.id}) }}</code></small></td>
-                    <td>{{ connection.appId }}</td><td>{{ connection.status }}</td><td>{{ connection.graphVersion }}</td>
-                    <td>
-                        {% for asset in connection.assets %}
-                            <div class="mb-xs"><a href="{{ path('mautic_meta_asset_edit', {assetId: asset.id}) }}">{{ asset.name }}</a> <small class="text-muted">{{ asset.type.value }}</small>
-                            <form class="d-inline" method="post" action="{{ path('mautic_meta_asset_delete', {assetId: asset.id}) }}" onsubmit="return confirm('Delete this asset and its message history?');"><input type="hidden" name="_token" value="{{ csrf_token('meta_asset_delete_' ~ asset.id) }}"><button class="btn btn-danger btn-xs" type="submit" title="Delete asset"><i class="ri-delete-bin-line"></i></button></form></div>
-                        {% else %}<span class="text-muted">0</span>{% endfor %}
-                    </td>
-                    <td>
-                        <a class="btn btn-default btn-xs" href="{{ path('mautic_meta_connection_edit', {connectionId: connection.id}) }}">Edit</a>
-                        <form class="d-inline" method="post" action="{{ path('mautic_meta_connection_test', {connectionId: connection.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_connection_test_' ~ connection.id) }}"><button class="btn btn-info btn-xs" type="submit">Test</button></form>
-                        <form class="d-inline" method="post" action="{{ path('mautic_meta_connection_delete', {connectionId: connection.id}) }}" onsubmit="return confirm('Delete this connection, all assets and their Meta history?');"><input type="hidden" name="_token" value="{{ csrf_token('meta_connection_delete_' ~ connection.id) }}"><button class="btn btn-danger btn-xs" type="submit">Delete</button></form>
-                    </td>
-                </tr>
-            {% else %}
-                <tr><td colspan="6" class="text-center text-muted">{{ 'mautic.meta.connections.empty'|trans }}</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+{% extends '@MauticMeta/Shared/layout.html.twig' %}{% block headerTitle %}Conexões e contas{% endblock %}
+{% block metaBody %}
+<div class="meta-head"><div><h2>Conexões e contas</h2><p>Gerencie o acesso e as contas de cada canal.</p></div><a class="btn btn-primary" href="{{ path('mautic_meta_connection_new') }}">＋ Nova conexão</a></div>
+{% for connection in connections %}<div class="meta-box"><div class="meta-boxhead"><div><strong>{{ connection.name }}</strong> <span class="meta-badge {{ connection.status }}">{{ connection.status == 'active' ? 'Ativa no cadastro' : connection.status }}</span><p>{{ connection.assets|length }} contas e ativos · API {{ connection.graphVersion }}</p></div><div class="meta-actions"><a class="btn btn-default" href="{{ path('mautic_meta_connection_edit',{connectionId:connection.id}) }}">Configurar</a><a class="btn btn-default" href="{{ path('mautic_meta_asset_new',{connectionId:connection.id}) }}">Adicionar conta</a><form method="post" action="{{ path('mautic_meta_connection_test',{connectionId:connection.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_connection_test_'~connection.id) }}"><button class="btn btn-default">Verificar acesso</button></form></div></div><details class="meta-pad"><summary>Informações técnicas e opções da conexão</summary><p>App ID: {{ connection.appId }}</p><p>Webhook: <code>{{ url('mautic_meta_webhook',{connectionId:connection.id}) }}</code></p><form method="post" action="{{ path('mautic_meta_connection_delete',{connectionId:connection.id}) }}" onsubmit="return confirm('Excluir esta conexão, todas as contas e o histórico Meta associado?');"><input type="hidden" name="_token" value="{{ csrf_token('meta_connection_delete_'~connection.id) }}"><button class="btn btn-danger">Excluir conexão</button></form></details></div>{% endfor %}
+<form method="get" class="meta-filters"><label>Buscar<input class="form-control" name="search" placeholder="Nome, @usuário ou telefone" value="{{ app.request.query.get('search') }}"></label><label>Canal<select name="type" class="form-control"><option value="">Todos</option>{% for value,label in {'instagram_account':'Instagram','facebook_page':'Facebook','whatsapp_phone_number':'WhatsApp','whatsapp_business_account':'Conta comercial WhatsApp'} %}<option value="{{ value }}" {{ app.request.query.get('type') == value ? 'selected' : '' }}>{{ label }}</option>{% endfor %}</select></label><label>Situação<select class="form-control" name="status"><option value="">Todas</option>{% for value in ['active','inactive','error'] %}<option {{ app.request.query.get('status') == value ? 'selected' : '' }} value="{{ value }}">{{ {'active':'Ativa','inactive':'Inativa','error':'Erro'}[value] }}</option>{% endfor %}</select></label><label>Conexão<select class="form-control" name="connection"><option value="">Todas</option>{% for connection in connections %}<option value="{{ connection.id }}" {{ app.request.query.get('connection') == connection.id ? 'selected' : '' }}>{{ connection.name }}</option>{% endfor %}</select></label>{{ include('@MauticMeta/Shared/limit.html.twig') }}</form>{{ include('@MauticMeta/Shared/filter_state.html.twig') }}
+<div class="meta-box">{% for asset in listing.items %}<div class="meta-row meta-account-row"><div class="meta-person"><span class="meta-avatar"><i class="{{ asset.type.value == 'instagram_account' ? 'ri-instagram-line' : (asset.type.value == 'facebook_page' ? 'ri-facebook-circle-line' : 'ri-whatsapp-line') }}"></i></span><div><strong>{{ asset.username ? '@'~asset.username : asset.name }}</strong><p>{{ asset.name }}{% if asset.phoneNumber %} · {{ asset.phoneNumber }}{% endif %}</p><div class="meta-account-meta">{{ include('@MauticMeta/Shared/channel.html.twig', {channel:asset.type.value}) }}<small>{{ asset.connection.name }}</small></div></div></div><div class="meta-account-status">{{ include('@MauticMeta/Shared/status.html.twig', {status:asset.status}) }}</div><a class="btn btn-default" href="{{ path('mautic_meta_asset_edit',{assetId:asset.id}) }}">Gerenciar →</a></div>{% else %}<div class="meta-pad">Nenhuma conta encontrada. Ajuste os filtros ou adicione uma conta.</div>{% endfor %}{{ include('@MauticMeta/Shared/pagination.html.twig') }}</div>
 {% endblock %}

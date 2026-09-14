@@ -1,6 +1,30 @@
 # Mautic Meta Bundle
 
-Multi-account integration between Mautic 7 and the official Meta Graph API. WhatsApp and Instagram are independent channels backed by shared connections, encrypted credentials, assets, webhooks, queues, logs, and permissions.
+Multi-account integration between Mautic 7 and the official Meta Graph API. WhatsApp, Instagram and Facebook/Messenger are independent channels backed by shared connections, encrypted credentials, assets, webhooks, queues, logs, and permissions.
+
+## Interface atual — v0.12.1
+
+Administração dos canais com o visual do Mautic: filtros, paginação no servidor, identificação por ícones e badges, formulários por canal e prévia de modelos WhatsApp.
+
+![Visão geral do conector Meta no Mautic](docs/screenshots/visao-geral.png)
+
+<details>
+<summary>Conexões e contas</summary>
+
+![Contas organizadas por canal, com situações alinhadas](docs/screenshots/conexoes.png)
+
+</details>
+
+<details>
+<summary>Histórico de mensagens</summary>
+
+![Mensagens com badges de canal, tipo e situação](docs/screenshots/mensagens.png)
+
+</details>
+
+Capturas reais da instalação de validação, em setembro de 2026. Consulte o [guia da interface](docs/INTERFACE.md) e o [histórico de versões](CHANGELOG.md).
+
+O atendimento humano é um plugin separado: [Mautic Inbox Bundle](https://github.com/raphaelcangucu/mautic-inbox-bundle), compatível com esta versão. O conector administra autenticação, webhooks, identidades e envios; o Inbox administra as conversas e o trabalho dos atendentes.
 
 ## Implemented
 
@@ -181,3 +205,7 @@ GPL-3.0-or-later.
 This release adds Facebook Messenger and Facebook feed comments alongside WhatsApp and Instagram. The optional MauticInboxBundle 1.0.0 provides the shared support interface; the connector continues to own channel credentials, identities, messages and outbound processing. Human takeover gates both direct and queued automation. Without the inbox bundle, the no-op integration preserves standalone operation.
 
 Participant names, handles and profile images are enriched when the channel API and granted permissions allow it. Facebook Page permissions and webhook subscriptions must be configured for the intended messaging and comment features.
+
+## Interface de administração
+
+Consulte [Interface, filtros e validação](docs/INTERFACE.md) para a organização das páginas, paginação, editor visual de modelos e funcionamento da navegação no Mautic.

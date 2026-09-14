@@ -21,32 +21,32 @@ final class MetaAssetType extends AbstractType
     {
         $builder
             ->add('name', TextType::class, ['label' => 'mautic.core.name', 'constraints' => [new NotBlank()]])
-            ->add('type', ChoiceType::class, ['label' => 'Asset type', 'choices' => [
+            ->add('type', ChoiceType::class, ['label' => 'Tipo de conta', 'choices' => [
                 'WhatsApp Business Account' => AssetType::WhatsAppBusinessAccount->value,
                 'WhatsApp phone number' => AssetType::WhatsAppPhoneNumber->value,
                 'Instagram professional account' => AssetType::InstagramAccount->value,
                 'Facebook Page' => AssetType::FacebookPage->value,
             ]])
-            ->add('external_id', TextType::class, ['label' => 'Meta asset ID', 'constraints' => [new NotBlank()]])
-            ->add('username', TextType::class, ['required' => false, 'label' => 'Instagram username'])
-            ->add('phone_number', TextType::class, ['required' => false, 'label' => 'Display phone number'])
-            ->add('default_region', TextType::class, ['required' => false, 'label' => 'Default phone region'])
+            ->add('external_id', TextType::class, ['label' => 'ID da conta na Meta', 'constraints' => [new NotBlank()]])
+            ->add('username', TextType::class, ['required' => false, 'label' => 'Usuário do Instagram'])
+            ->add('phone_number', TextType::class, ['required' => false, 'label' => 'Telefone de exibição'])
+            ->add('default_region', TextType::class, ['required' => false, 'label' => 'País padrão do telefone'])
             ->add('trusted_import_default_region', TextType::class, [
                 'required' => false,
-                'label' => 'Waitlist/API phone region',
-                'help' => 'Region used only for national phone numbers imported by the trusted API, for example BR.',
+                'label' => 'País dos telefones importados',
+                'help' => 'País usado para números nacionais importados pela API confiável. Ex.: BR.',
             ])
             ->add('trusted_import_convert_legacy_br_mobile', CheckboxType::class, [
                 'required' => false,
-                'label' => 'Convert legacy Brazilian mobile numbers by adding the ninth digit',
+                'label' => 'Adicionar o nono dígito aos celulares brasileiros antigos',
             ])
-            ->add('contact_match_field', TextType::class, ['required' => false, 'label' => 'Contact field for exact identity matching', 'help' => 'Optional field alias containing the WhatsApp number or Instagram user ID. WhatsApp falls back to a unique phone/mobile match.'])
-            ->add('require_opt_in', CheckboxType::class, ['required' => false, 'label' => 'Require explicit WhatsApp opt-in before sending'])
-            ->add('daily_send_limit', IntegerType::class, ['required' => false, 'label' => 'Maximum messages per 24 hours', 'help' => 'May be lowered. Safety ceiling: WhatsApp 250; Instagram/Facebook 50.', 'constraints' => [new Positive()]])
-            ->add('hourly_send_limit', IntegerType::class, ['required' => false, 'label' => 'Maximum messages per hour', 'help' => 'Safety ceiling: WhatsApp 50; Instagram/Facebook 20.', 'constraints' => [new Positive()]])
-            ->add('recipient_daily_limit', IntegerType::class, ['required' => false, 'label' => 'Maximum messages per recipient per 24 hours', 'help' => 'Between 1 and 3. This prevents repeated campaign contact.', 'constraints' => [new Positive()]])
-            ->add('recipient_cooldown_seconds', IntegerType::class, ['required' => false, 'label' => 'Minimum seconds between messages to one recipient', 'help' => 'Minimum: WhatsApp 60 seconds; Instagram/Facebook 300 seconds.', 'constraints' => [new Positive()]])
-            ->add('is_default', CheckboxType::class, ['required' => false, 'label' => 'Default asset for this channel']);
+            ->add('contact_match_field', TextType::class, ['required' => false, 'label' => 'Campo do contato para vínculo exato', 'help' => 'Alias do campo com número WhatsApp ou ID Instagram. No WhatsApp, também é considerada a correspondência única de telefone/celular.'])
+            ->add('require_opt_in', CheckboxType::class, ['required' => false, 'label' => 'Exigir consentimento explícito para WhatsApp'])
+            ->add('daily_send_limit', IntegerType::class, ['required' => false, 'label' => 'Máximo de mensagens por dia', 'help' => 'Pode ser reduzido. Teto: WhatsApp 250; Instagram/Facebook 50.', 'constraints' => [new Positive()]])
+            ->add('hourly_send_limit', IntegerType::class, ['required' => false, 'label' => 'Máximo de mensagens por hora', 'help' => 'Teto: WhatsApp 50; Instagram/Facebook 20.', 'constraints' => [new Positive()]])
+            ->add('recipient_daily_limit', IntegerType::class, ['required' => false, 'label' => 'Máximo por destinatário por dia', 'help' => 'Entre 1 e 3, para limitar contatos repetidos por campanhas.', 'constraints' => [new Positive()]])
+            ->add('recipient_cooldown_seconds', IntegerType::class, ['required' => false, 'label' => 'Intervalo por destinatário (segundos)', 'help' => 'Mínimo: WhatsApp 60 segundos; Instagram/Facebook 300 segundos.', 'constraints' => [new Positive()]])
+            ->add('is_default', CheckboxType::class, ['required' => false, 'label' => 'Conta padrão deste canal']);
     }
 
     public function configureOptions(OptionsResolver $resolver): void
