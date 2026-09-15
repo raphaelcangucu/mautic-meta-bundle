@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use MauticPlugin\MauticMetaBundle\Controller\AdapterReplyController;
+use MauticPlugin\MauticMetaBundle\Controller\Api\InstagramMediaApiController;
 use MauticPlugin\MauticMetaBundle\Controller\ConnectionController;
 use MauticPlugin\MauticMetaBundle\Controller\ConversationController;
 use MauticPlugin\MauticMetaBundle\Controller\DashboardController;
@@ -56,6 +57,14 @@ return [
             'mautic_meta_webhook' => ['path' => '/meta/webhook/{connectionId}', 'controller' => WebhookController::class.'::handle', 'method' => ['GET', 'POST']],
             'mautic_meta_adapter_reply' => ['path' => '/meta/adapters/{connectionId}/{adapterName}/messages', 'controller' => AdapterReplyController::class.'::reply', 'method' => 'POST'],
             'mautic_meta_landing_consent' => ['path' => '/meta/consent/landing/{connectionId}/{assetId}', 'controller' => LandingConsentController::class.'::capture', 'method' => 'POST'],
+        ],
+        'api' => [
+            'mautic_api_meta_instagram_media_resolve' => [
+                'path'         => '/meta/instagram/assets/{assetId}/media/resolve',
+                'controller'   => InstagramMediaApiController::class.'::resolve',
+                'method'       => 'GET',
+                'requirements' => ['assetId' => '\\d+'],
+            ],
         ],
     ],
     'menu' => [

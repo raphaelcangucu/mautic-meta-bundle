@@ -22,6 +22,8 @@ return function (ContainerConfigurator $configurator): void {
     $excludes = MauticCoreExtension::DEFAULT_EXCLUDES;
     $excludes[] = 'Mcp';
     $excludes[] = 'Application/Connection/ConnectionCredentials.php';
+    $excludes[] = 'Application/Instagram/InstagramMediaResolveException.php';
+    $excludes[] = 'Application/Instagram/InstagramPermalink.php';
     $excludes[] = 'Application/WhatsApp/WhatsAppSendResult.php';
     $excludes[] = 'Infrastructure/MetaGraphApiException.php';
 

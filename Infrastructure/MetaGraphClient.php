@@ -130,7 +130,7 @@ final class MetaGraphClient implements MetaGraphClientInterface
         $status = $response->getStatusCode();
         if ($status >= 400) {
             $error = is_array($data['error'] ?? null)
-                ? $this->withoutTokens($data['error'])
+                ? $this->withoutSecrets($data['error'], [$credentials->accessToken, $credentials->appSecret, $credentials->verifyToken])
                 : ['message' => 'Meta Graph API request failed.'];
             $endpoint = $this->safeEndpoint($url);
 
@@ -162,16 +162,20 @@ final class MetaGraphClient implements MetaGraphClientInterface
 
     /**
      * @param array<string, mixed> $data
+     * @param list<string>         $secrets
      *
      * @return array<string, mixed>
      */
-    private function withoutTokens(array $data): array
+    private function withoutSecrets(array $data, array $secrets): array
     {
+        $secrets = array_values(array_filter($secrets, static fn (string $secret): bool => '' !== $secret));
         foreach ($data as $key => $value) {
             if (in_array(strtolower((string) $key), ['token', 'access_token'], true)) {
                 $data[$key] = '[REDACTED]';
             } elseif (is_array($value)) {
-                $data[$key] = $this->withoutTokens($value);
+                $data[$key] = $this->withoutSecrets($value, $secrets);
+            } elseif (is_string($value) && [] !== $secrets) {
+                $data[$key] = str_replace($secrets, '[REDACTED]', $value);
             }
         }
 

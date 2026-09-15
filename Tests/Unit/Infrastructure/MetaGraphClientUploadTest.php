@@ -8,8 +8,10 @@ use Mautic\CoreBundle\Helper\EncryptionHelper;
 use MauticPlugin\MauticMetaBundle\Application\Connection\ConnectionCredentialProvider;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
 use MauticPlugin\MauticMetaBundle\Infrastructure\ConnectionRateLimiter;
+use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClient;
 use MauticPlugin\MauticMetaBundle\Security\CredentialVault;
+use Psr\Log\LoggerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -63,5 +65,58 @@ final class MetaGraphClientUploadTest extends TestCase
 
         self::assertSame('profile-picture-handle', $client->upload($connection, 'profile.png', 'PNGDATA', 'image/png'));
         self::assertSame(2, $requests);
+    }
+
+    public function testRedactsConfiguredSecretsFromGraphErrorsAndLogs(): void
+    {
+        $http = new MockHttpClient(new MockResponse(json_encode([
+            'error' => [
+                'message' => 'Expired credential access-token for app-secret',
+                'type' => 'OAuthException',
+                'code' => 190,
+                'access_token' => 'access-token',
+                'debug' => ['token' => 'verify-token'],
+            ],
+        ], JSON_THROW_ON_ERROR), ['http_code' => 400, 'response_headers' => ['content-type: application/json']]));
+        $encryption = $this->createMock(EncryptionHelper::class);
+        $encryption->method('decrypt')->willReturnCallback(static fn (string $value): string => match ($value) {
+            'sealed-secret' => 'app-secret',
+            'sealed-access' => 'access-token',
+            'sealed-verify' => 'verify-token',
+        });
+        $connection = (new MetaConnection(9))
+            ->setAppId('1437146078305405')
+            ->setEncryptedAppSecret('sealed-secret')
+            ->setEncryptedAccessToken('sealed-access')
+            ->setEncryptedVerifyToken('sealed-verify')
+            ->setGraphVersion('v26.0');
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            'Meta Graph API request failed.',
+            self::callback(static function (array $context): bool {
+                $encoded = json_encode($context, JSON_THROW_ON_ERROR);
+
+                return !str_contains($encoded, 'access-token')
+                    && !str_contains($encoded, 'app-secret')
+                    && !str_contains($encoded, 'verify-token');
+            }),
+        );
+        $client = new MetaGraphClient(
+            $http,
+            new ConnectionCredentialProvider(new CredentialVault($encryption)),
+            new ConnectionRateLimiter(new ArrayAdapter()),
+            $logger,
+        );
+
+        try {
+            $client->get($connection, 'me/accounts');
+            self::fail('Expected Graph exception.');
+        } catch (MetaGraphApiException $exception) {
+            $details = json_encode($exception->details(), JSON_THROW_ON_ERROR);
+            self::assertStringNotContainsString('access-token', $details);
+            self::assertStringNotContainsString('app-secret', $details);
+            self::assertStringNotContainsString('verify-token', $details);
+            self::assertStringContainsString('[REDACTED]', $details);
+        }
     }
 }

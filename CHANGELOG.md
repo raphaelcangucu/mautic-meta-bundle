@@ -4,6 +4,8 @@
 
 - Add idempotent public replies to Instagram comment campaigns with sequential message rotation.
 - Allow a public comment reply and a private Direct reply to run together without triggering the local cooldown between different reply types.
+- Add an authenticated, read-only API endpoint that resolves Instagram post and reel permalinks to account-owned Graph media IDs.
+- Redact configured Meta credentials when the Graph API includes them inside error messages or nested diagnostic fields.
 
 ## 0.13.0 - 2026-09-15
 

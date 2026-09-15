@@ -64,6 +64,19 @@ This flow is inactive until a Mautic campaign is published with an exact Instagr
 
 Only published campaigns with a matching asset, exact media ID, and whole-word keyword evaluate the decision. A new commenter is associated with an anonymous Mautic contact and enrolled in the matching campaign. Mautic schedules and runs each positive-path action, creating a unique private and public queue job per asset and comment. Repeated comments from the same contact require Mautic's campaign restart option. If an action fails after the decision log is stored, Mautic schedules that action for another attempt in five minutes; webhook replay leaves the rotation and existing action log intact. The unique queue keys prevent duplicate replies to the same comment. Ambiguous delivery outcomes are held for manual review instead of being retried automatically.
 
+### Resolve an Instagram permalink
+
+An OAuth2 client with `meta:connections:view` permission can resolve an Instagram post or reel permalink to the exact Graph media ID owned by a configured professional-account asset:
+
+```bash
+curl --get \
+  --header "Authorization: Bearer $MAUTIC_ACCESS_TOKEN" \
+  --data-urlencode "permalink=https://www.instagram.com/p/DdRsy0CgJk7/" \
+  https://mautic.example.com/api/meta/instagram/assets/4/media/resolve
+```
+
+The read-only endpoint accepts `/p/{shortcode}/` and `/reel/{shortcode}/` URLs. It removes the query string, fragment, optional `www`, and trailing slash for matching, then searches a bounded number of pages from the connected account's own media edge. A successful response contains `asset_id`, `account`, `media_id`, canonical `permalink`, `media_type`, and `timestamp`. A media-not-found response uses HTTP 404 with `code=instagram_media_not_found` and `retryable=true`, so callers can safely retry newly created publications. Responses never contain Meta credentials.
+
 ## Landing WhatsApp consent
 
 Two independent consent sources are supported:
