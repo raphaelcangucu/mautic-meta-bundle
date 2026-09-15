@@ -34,6 +34,37 @@ final class PhoneNormalizer
         }
     }
 
+    /**
+     * Return the canonical recipient followed by safe historical aliases.
+     *
+     * Meta may identify the same Brazilian mobile with or without the ninth
+     * digit. Both forms must resolve to one conversation, while the message
+     * itself keeps the exact recipient used for delivery auditing.
+     *
+     * @return list<string>
+     */
+    public function equivalentRecipients(string $phone, string $defaultRegion): array
+    {
+        $digits = preg_replace('/\D+/', '', trim($phone)) ?? '';
+        $canonical = $this->normalizeMetaSender($digits ?: $phone, $defaultRegion);
+        $recipients = [$canonical];
+
+        if ('BR' === strtoupper($defaultRegion)) {
+            if (preg_match('/^55[1-9][1-9]9[6-9][0-9]{7}$/', $canonical)) {
+                $recipients[] = substr($canonical, 0, 4).substr($canonical, 5);
+            } elseif (preg_match('/^55[1-9][1-9][6-9][0-9]{7}$/', $digits)) {
+                $recipients[] = substr($digits, 0, 4).'9'.substr($digits, 4);
+                $recipients[] = $digits;
+            }
+        }
+
+        if ('' !== $digits) {
+            $recipients[] = $digits;
+        }
+
+        return array_values(array_unique(array_filter($recipients, static fn (string $recipient): bool => '' !== $recipient)));
+    }
+
     public function normalizeImported(string $phone, string $defaultRegion, bool $convertLegacyBrazilianMobile = true): string
     {
         try {

@@ -1,7 +1,139 @@
-{% extends '@MauticMeta/Shared/layout.html.twig' %}{% block headerTitle %}Conexões e contas{% endblock %}
+{% extends '@MauticMeta/Shared/layout.html.twig' %}
+{% block headerTitle %}{{ 'mautic.meta.ui.connections_and_accounts_414b44'|trans }}{% endblock %}
+
 {% block metaBody %}
-<div class="meta-head"><div><h2>Conexões e contas</h2><p>Gerencie o acesso e as contas de cada canal.</p></div><a class="btn btn-primary" href="{{ path('mautic_meta_connection_new') }}">＋ Nova conexão</a></div>
-{% for connection in connections %}<div class="meta-box"><div class="meta-boxhead"><div><strong>{{ connection.name }}</strong> <span class="meta-badge {{ connection.status }}">{{ connection.status == 'active' ? 'Ativa no cadastro' : connection.status }}</span><p>{{ connection.assets|length }} contas e ativos · API {{ connection.graphVersion }}</p></div><div class="meta-actions"><a class="btn btn-default" href="{{ path('mautic_meta_connection_edit',{connectionId:connection.id}) }}">Configurar</a><a class="btn btn-default" href="{{ path('mautic_meta_asset_new',{connectionId:connection.id}) }}">Adicionar conta</a><form method="post" action="{{ path('mautic_meta_connection_test',{connectionId:connection.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_connection_test_'~connection.id) }}"><button class="btn btn-default">Verificar acesso</button></form></div></div><details class="meta-pad"><summary>Informações técnicas e opções da conexão</summary><p>App ID: {{ connection.appId }}</p><p>Webhook: <code>{{ url('mautic_meta_webhook',{connectionId:connection.id}) }}</code></p><form method="post" action="{{ path('mautic_meta_connection_delete',{connectionId:connection.id}) }}" onsubmit="return confirm('Excluir esta conexão, todas as contas e o histórico Meta associado?');"><input type="hidden" name="_token" value="{{ csrf_token('meta_connection_delete_'~connection.id) }}"><button class="btn btn-danger">Excluir conexão</button></form></details></div>{% endfor %}
-<form method="get" class="meta-filters"><label>Buscar<input class="form-control" name="search" placeholder="Nome, @usuário ou telefone" value="{{ app.request.query.get('search') }}"></label><label>Canal<select name="type" class="form-control"><option value="">Todos</option>{% for value,label in {'instagram_account':'Instagram','facebook_page':'Facebook','whatsapp_phone_number':'WhatsApp','whatsapp_business_account':'Conta comercial WhatsApp'} %}<option value="{{ value }}" {{ app.request.query.get('type') == value ? 'selected' : '' }}>{{ label }}</option>{% endfor %}</select></label><label>Situação<select class="form-control" name="status"><option value="">Todas</option>{% for value in ['active','inactive','error'] %}<option {{ app.request.query.get('status') == value ? 'selected' : '' }} value="{{ value }}">{{ {'active':'Ativa','inactive':'Inativa','error':'Erro'}[value] }}</option>{% endfor %}</select></label><label>Conexão<select class="form-control" name="connection"><option value="">Todas</option>{% for connection in connections %}<option value="{{ connection.id }}" {{ app.request.query.get('connection') == connection.id ? 'selected' : '' }}>{{ connection.name }}</option>{% endfor %}</select></label>{{ include('@MauticMeta/Shared/limit.html.twig') }}</form>{{ include('@MauticMeta/Shared/filter_state.html.twig') }}
-<div class="meta-box">{% for asset in listing.items %}<div class="meta-row meta-account-row"><div class="meta-person"><span class="meta-avatar"><i class="{{ asset.type.value == 'instagram_account' ? 'ri-instagram-line' : (asset.type.value == 'facebook_page' ? 'ri-facebook-circle-line' : 'ri-whatsapp-line') }}"></i></span><div><strong>{{ asset.username ? '@'~asset.username : asset.name }}</strong><p>{{ asset.name }}{% if asset.phoneNumber %} · {{ asset.phoneNumber }}{% endif %}</p><div class="meta-account-meta">{{ include('@MauticMeta/Shared/channel.html.twig', {channel:asset.type.value}) }}<small>{{ asset.connection.name }}</small></div></div></div><div class="meta-account-status">{{ include('@MauticMeta/Shared/status.html.twig', {status:asset.status}) }}</div><a class="btn btn-default" href="{{ path('mautic_meta_asset_edit',{assetId:asset.id}) }}">Gerenciar →</a></div>{% else %}<div class="meta-pad">Nenhuma conta encontrada. Ajuste os filtros ou adicione uma conta.</div>{% endfor %}{{ include('@MauticMeta/Shared/pagination.html.twig') }}</div>
+    {% if app.user and app.user.admin %}
+        <p><a class="btn btn-default" href="{{ path('mautic_meta_provider') }}">Tech Provider — conectar empresas e testar números</a></p>
+    {% endif %}
+
+    <div class="meta-head">
+        <div>
+            <h2>{{ 'mautic.meta.ui.connections_and_accounts_414b44'|trans }}</h2>
+            <p>{{ 'mautic.meta.ui.manage_access_and_accounts_for_each_channel_6d34a2'|trans }}</p>
+        </div>
+        <a class="btn btn-primary" href="{{ path('mautic_meta_connection_new') }}">{{ 'mautic.meta.ui.new_connection_3b2289'|trans }}</a>
+    </div>
+
+    <div class="meta-health-intro">
+        <span class="meta-health-intro__icon"><i class="ri-pulse-line" aria-hidden="true"></i></span>
+        <div>
+            <strong>{{ 'mautic.meta.health.title'|trans }}</strong>
+            <p>{{ 'mautic.meta.health.description'|trans }}</p>
+        </div>
+    </div>
+
+    {% for connection in connections %}
+        <div class="meta-box">
+            <div class="meta-boxhead">
+                <div>
+                    <strong>{{ connection.name }}</strong>
+                    <span class="meta-authorization-label">{{ 'mautic.meta.health.authorization'|trans }}</span>
+                    {{ include('@MauticMeta/Shared/status.html.twig', {status:connection.status}) }}
+                    <p>{{ connection.assets|length }} {{ 'mautic.meta.ui.accounts_and_assets_api_1c13d8'|trans }} {{ connection.graphVersion }}</p>
+                    <small>{{ 'mautic.meta.health.authorization_note'|trans }}</small>
+                </div>
+                <div class="meta-actions">
+                    <a class="btn btn-default" href="{{ path('mautic_meta_connection_edit',{connectionId:connection.id}) }}">{{ 'mautic.meta.ui.configure_9b2229'|trans }}</a>
+                    <a class="btn btn-default" href="{{ path('mautic_meta_asset_new',{connectionId:connection.id}) }}">{{ 'mautic.meta.ui.add_account_b96eb4'|trans }}</a>
+                    <form method="post" action="{{ path('mautic_meta_connection_test',{connectionId:connection.id}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('meta_connection_test_'~connection.id) }}">
+                        <button class="btn btn-default">{{ 'mautic.meta.ui.check_access_1940aa'|trans }}</button>
+                    </form>
+                </div>
+            </div>
+            <details class="meta-pad">
+                <summary>{{ 'mautic.meta.ui.technical_information_and_connection_options_a201b5'|trans }}</summary>
+                <p>{{ 'mautic.meta.ui.app_id_31c83e'|trans }} {{ connection.appId }}</p>
+                <p>{{ 'mautic.meta.ui.webhook_8074d9'|trans }} <code>{{ url('mautic_meta_webhook',{connectionId:connection.id}) }}</code></p>
+                <form method="post" action="{{ path('mautic_meta_connection_delete',{connectionId:connection.id}) }}" onsubmit="return confirm({{ ('mautic.meta.ui.delete_this_connection_all_accounts_and_the_associated_meta_histo_c9f8be'|trans)|json_encode|e('html_attr') }});">
+                    <input type="hidden" name="_token" value="{{ csrf_token('meta_connection_delete_'~connection.id) }}">
+                    <button class="btn btn-danger">{{ 'mautic.meta.ui.delete_connection_915657'|trans }}</button>
+                </form>
+            </details>
+        </div>
+    {% endfor %}
+
+    <form method="get" class="meta-filters">
+        <label>{{ 'mautic.meta.ui.search_a62405'|trans }}<input class="form-control" name="search" placeholder="{{ 'mautic.meta.ui.name_username_or_phone_ae25d4'|trans|e('html_attr') }}" value="{{ app.request.query.get('search') }}"></label>
+        <label>{{ 'mautic.meta.ui.channel_61f21e'|trans }}<select name="type" class="form-control"><option value="">{{ 'mautic.meta.ui.all_a4114a'|trans }}</option>{% for value,label in {'instagram_account':'Instagram','facebook_page':'Facebook','whatsapp_phone_number':'WhatsApp','whatsapp_business_account':('mautic.meta.ui.whatsapp_business_account_881154'|trans)} %}<option value="{{ value }}" {{ app.request.query.get('type') == value ? 'selected' : '' }}>{{ label }}</option>{% endfor %}</select></label>
+        <label>{{ 'mautic.meta.ui.status_2d3abf'|trans }}<select class="form-control" name="status"><option value="">{{ 'mautic.meta.ui.all_8a3c34'|trans }}</option>{% for value in ['active','inactive','error'] %}<option {{ app.request.query.get('status') == value ? 'selected' : '' }} value="{{ value }}">{{ {'active':('mautic.meta.ui.active_f21c4f'|trans),'inactive':('mautic.meta.ui.inactive_01cbc3'|trans),'error':('mautic.meta.ui.error_8dba36'|trans)}[value] }}</option>{% endfor %}</select></label>
+        <label>{{ 'mautic.meta.ui.connection_ef46fe'|trans }}<select class="form-control" name="connection"><option value="">{{ 'mautic.meta.ui.all_8a3c34'|trans }}</option>{% for connection in connections %}<option value="{{ connection.id }}" {{ app.request.query.get('connection') == connection.id ? 'selected' : '' }}>{{ connection.name }}</option>{% endfor %}</select></label>
+        {{ include('@MauticMeta/Shared/limit.html.twig') }}
+    </form>
+    {{ include('@MauticMeta/Shared/filter_state.html.twig') }}
+
+    <div class="meta-box">
+        {% for asset in listing.items %}
+            {% set health = whatsAppHealth[asset.id]|default(null) %}
+            {% set statePresentation = health ? {
+                healthy: {label: 'mautic.meta.health.healthy', icon: 'ri-checkbox-circle-fill'},
+                awaiting_delivery: {label: 'mautic.meta.health.awaiting_delivery', icon: 'ri-time-line'},
+                receiving: {label: 'mautic.meta.health.receiving', icon: 'ri-arrow-left-down-line'},
+                sending: {label: 'mautic.meta.health.sending', icon: 'ri-arrow-right-up-line'},
+                sending_pending: {label: 'mautic.meta.health.sending_pending', icon: 'ri-time-line'},
+                degraded: {label: 'mautic.meta.health.degraded', icon: 'ri-error-warning-fill'},
+                stale: {label: 'mautic.meta.health.stale', icon: 'ri-history-line'},
+                no_evidence: {label: 'mautic.meta.health.no_evidence', icon: 'ri-question-line'}
+            }[health.state] : null %}
+            <div class="meta-row meta-account-row {{ health ? 'meta-account-row--health meta-health--'~health.state : '' }}">
+                <div class="meta-person">
+                    <span class="meta-avatar"><i class="{{ asset.type.value == 'instagram_account' ? 'ri-instagram-line' : (asset.type.value == 'facebook_page' ? 'ri-facebook-circle-line' : 'ri-whatsapp-line') }}"></i></span>
+                    <div>
+                        <strong>{{ asset.username ? '@'~asset.username : asset.name }}</strong>
+                        <p>{{ asset.name }}{% if asset.phoneNumber %} · {{ health ? health.displayNumber : 'WhatsApp' }}{% endif %}</p>
+                        <div class="meta-account-meta">{{ include('@MauticMeta/Shared/channel.html.twig', {channel:asset.type.value}) }}<small>{{ asset.connection.name }}</small></div>
+                    </div>
+                </div>
+                <div class="meta-account-status">{{ include('@MauticMeta/Shared/status.html.twig', {status:asset.status}) }}</div>
+                <a class="btn btn-default" href="{{ path('mautic_meta_asset_edit',{assetId:asset.id}) }}">{{ 'mautic.meta.ui.manage_284e25'|trans }}</a>
+
+                {% if health %}
+                    <section class="meta-operational-health" aria-label="{{ 'mautic.meta.health.operational_evidence'|trans|e('html_attr') }}">
+                        <div class="meta-operational-health__headline">
+                            <span class="meta-operational-health__state"><i class="{{ statePresentation.icon }}" aria-hidden="true"></i><strong>{{ statePresentation.label|trans }}</strong></span>
+                            <span class="meta-phone-suffix {{ health.hasOperationalProof ? 'is-active' : '' }}">{{ health.displayNumber }}</span>
+                        </div>
+                        <div class="meta-health-signals">
+                            <div class="meta-health-signal">
+                                <span class="meta-health-signal__icon is-inbound"><i class="ri-arrow-left-down-line" aria-hidden="true"></i></span>
+                                <div>
+                                    <small>{{ 'mautic.meta.health.last_inbound'|trans }}</small>
+                                    {% if health.inbound %}
+                                        <strong>{{ 'mautic.meta.health.received_at'|trans({'%date%': health.inbound.occurredAt|date('mautic.meta.ui.date_time_format'|trans)}) }}</strong>
+                                        {{ include('@MauticMeta/Shared/status.html.twig', {status:health.inbound.status}) }}
+                                    {% else %}
+                                        <strong>{{ 'mautic.meta.health.not_recorded'|trans }}</strong>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="meta-health-signal">
+                                <span class="meta-health-signal__icon is-outbound"><i class="ri-arrow-right-up-line" aria-hidden="true"></i></span>
+                                <div>
+                                    <small>{{ 'mautic.meta.health.last_outbound'|trans }}</small>
+                                    {% if health.outbound %}
+                                        <strong>{{ 'mautic.meta.health.sent_at'|trans({'%date%': health.outbound.occurredAt|date('mautic.meta.ui.date_time_format'|trans)}) }}</strong>
+                                        {{ include('@MauticMeta/Shared/status.html.twig', {status:health.outbound.status}) }}
+                                        {% if health.outbound.acceptedByMeta and not health.outbound.deliveryConfirmed %}<p>{{ 'mautic.meta.health.accepted_not_delivered'|trans }}</p>{% endif %}
+                                    {% else %}
+                                        <strong>{{ 'mautic.meta.health.not_recorded'|trans }}</strong>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="meta-health-signal meta-health-signal--authorization">
+                                <span class="meta-health-signal__icon"><i class="ri-key-2-line" aria-hidden="true"></i></span>
+                                <div>
+                                    <small>{{ 'mautic.meta.health.authorization'|trans }}</small>
+                                    {{ include('@MauticMeta/Shared/status.html.twig', {status:asset.connection.status}) }}
+                                    <p>{{ 'mautic.meta.health.authorization_short_note'|trans }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="meta-pad">{{ 'mautic.meta.ui.no_accounts_found_adjust_the_filters_or_add_an_account_2374a9'|trans }}</div>
+        {% endfor %}
+        {{ include('@MauticMeta/Shared/pagination.html.twig') }}
+    </div>
 {% endblock %}

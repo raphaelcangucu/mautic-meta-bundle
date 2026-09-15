@@ -13,6 +13,20 @@ class MetaMessageRepository extends CommonRepository
 {
     public function getTableAlias(): string { return 'mm'; }
 
+    public function findLatestForAssetDirection(MetaAsset $asset, string $direction): ?MetaMessage
+    {
+        if (!in_array($direction, ['inbound', 'outbound'], true)) {
+            throw new \InvalidArgumentException('Message direction must be inbound or outbound.');
+        }
+
+        $message = $this->findOneBy(
+            ['asset' => $asset, 'channel' => 'whatsapp', 'direction' => $direction],
+            ['dateAdded' => 'DESC', 'id' => 'DESC'],
+        );
+
+        return $message instanceof MetaMessage ? $message : null;
+    }
+
     /**
      * @param array<string, mixed> $options
      *

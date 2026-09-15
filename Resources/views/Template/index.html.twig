@@ -1,26 +1,44 @@
 {% extends '@MauticMeta/Shared/layout.html.twig' %}
 {% block mauticContent %}meta{% endblock %}
-{% block headerTitle %}Modelos WhatsApp{% endblock %}
+{% block headerTitle %}{{ 'mautic.meta.ui.whatsapp_templates_6b4c78'|trans }}{% endblock %}
 {% block metaBody %}
-<div class="meta-head"><div><h2>Modelos WhatsApp</h2><p>Conteúdo e aprovação dos modelos de mensagem.</p></div></div>
-<form method="get" class="meta-filters"><label>Buscar<input class="form-control" name="search" value="{{ app.request.query.get('search') }}" placeholder="Nome do modelo"></label>
+<div class="meta-head"><div><h2>{{ 'mautic.meta.ui.whatsapp_templates_6b4c78'|trans }}</h2><p>{{ 'mautic.meta.ui.message_template_content_and_approval_0a502b'|trans }}</p></div></div>
+<form method="get" class="meta-filters"><label>{{ 'mautic.meta.ui.search_a62405'|trans }}<input class="form-control" name="search" value="{{ app.request.query.get('search') }}" placeholder="{{ 'mautic.meta.ui.template_name_077fcb'|trans|e('html_attr') }}"></label>
 
-<label>Conta<select class="form-control" name="asset"><option value="">Todas</option>{% for a in businessAccounts %}<option value="{{ a.id }}" {{ app.request.query.get('asset') == a.id ? 'selected' : '' }}>{{ a.name }}</option>{% endfor %}</select></label>
-<label>Situação<select class="form-control" name="status"><option value="">Todas</option>{% for s in ['APPROVED','PENDING','REJECTED','PAUSED','DISABLED'] %}<option value="{{ s }}" {{ app.request.query.get('status') == s ? 'selected' : '' }}>{{ {'APPROVED':'Aprovado','PENDING':'Em análise','REJECTED':'Rejeitado','PAUSED':'Pausado','DISABLED':'Desativado'}[s] }}</option>{% endfor %}</select></label>
-<label>Idioma<input name="language" class="form-control" value="{{ app.request.query.get('language') }}" placeholder="Ex.: pt_BR"></label><label>Categoria<select name="category" class="form-control"><option value="">Todas</option>{% for c in ['MARKETING','UTILITY','AUTHENTICATION'] %}<option {{ app.request.query.get('category') == c ? 'selected' : '' }}>{{ c }}</option>{% endfor %}</select></label>{{ include('@MauticMeta/Shared/limit.html.twig') }}</form>{{ include('@MauticMeta/Shared/filter_state.html.twig') }}
+<label>{{ 'mautic.meta.ui.account_4d0751'|trans }}<select class="form-control" name="asset"><option value="">{{ 'mautic.meta.ui.all_8a3c34'|trans }}</option>{% for a in businessAccounts %}<option value="{{ a.id }}" {{ app.request.query.get('asset') == a.id ? 'selected' : '' }}>{{ a.name }}</option>{% endfor %}</select></label>
+<label>{{ 'mautic.meta.ui.status_2d3abf'|trans }}<select class="form-control" name="status"><option value="">{{ 'mautic.meta.ui.all_8a3c34'|trans }}</option>{% for s in ['APPROVED','PENDING','REJECTED','PAUSED','DISABLED'] %}<option value="{{ s }}" {{ app.request.query.get('status') == s ? 'selected' : '' }}>{{ {'APPROVED':('mautic.meta.ui.approved_74eebf'|trans),'PENDING':('mautic.meta.ui.in_review_344676'|trans),'REJECTED':('mautic.meta.ui.rejected_3b2d4f'|trans),'PAUSED':('mautic.meta.ui.paused_7f7e6f'|trans),'DISABLED':('mautic.meta.ui.disabled_8809a6'|trans)}[s] }}</option>{% endfor %}</select></label>
+<label>{{ 'mautic.meta.ui.language_009433'|trans }}<input name="language" class="form-control" value="{{ app.request.query.get('language') }}" placeholder="{{ 'mautic.meta.ui.e_g_en_us_90556b'|trans|e('html_attr') }}"></label><label>{{ 'mautic.meta.ui.category_5966b0'|trans }}<select name="category" class="form-control"><option value="">{{ 'mautic.meta.ui.all_8a3c34'|trans }}</option>{% for c in ['MARKETING','UTILITY','AUTHENTICATION'] %}<option value="{{ c }}" {{ app.request.query.get('category') == c ? 'selected' : '' }}>{{ ('mautic.meta.ui.'~c|lower)|trans }}</option>{% endfor %}</select></label>{{ include('@MauticMeta/Shared/limit.html.twig') }}</form>{{ include('@MauticMeta/Shared/filter_state.html.twig') }}
 <div class="panel panel-default ma-md">
     <div class="panel-heading">
-        <a class="btn btn-success btn-sm" href="{{ path('mautic_meta_template_new') }}">Criar modelo</a>
-        {% for asset in businessAccounts %}
-        <form method="post" action="{{ path('mautic_meta_templates_sync', {assetId: asset.id}) }}" style="display:inline">
-            <input type="hidden" name="_token" value="{{ csrf_token('meta_template_sync_' ~ asset.id) }}">
-            <button class="btn btn-primary btn-sm" type="submit">Sincronizar {{ asset.name }}</button>
-        </form>
-        {% endfor %}
+        <div class="meta-template-toolbar">
+            <a class="btn btn-success btn-sm" href="{{ path('mautic_meta_template_new') }}"><i class="ri-add-line" aria-hidden="true"></i> {{ 'mautic.meta.ui.create_template_6abd89'|trans }}</a>
+            {% if businessAccounts|length %}
+            <details class="meta-action-menu" data-meta-action-menu>
+                <summary class="btn btn-primary btn-sm" aria-haspopup="menu">
+                    <i class="ri-refresh-line" aria-hidden="true"></i>
+                    <span>{{ 'mautic.meta.ui.synchronize_e32f49'|trans }}</span>
+                    <i class="ri-arrow-down-s-line meta-action-menu__chevron" aria-hidden="true"></i>
+                </summary>
+                <div class="meta-action-menu__panel" role="menu" aria-label="{{ 'mautic.meta.ui.synchronize_e32f49'|trans|e('html_attr') }}">
+                    <div class="meta-action-menu__heading">{{ 'mautic.meta.ui.account_4d0751'|trans }}</div>
+                    {% for asset in businessAccounts %}
+                    <form method="post" action="{{ path('mautic_meta_templates_sync', {assetId: asset.id}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('meta_template_sync_' ~ asset.id) }}">
+                        <button class="meta-action-menu__item" type="submit" role="menuitem">
+                            <span class="meta-action-menu__icon"><i class="ri-whatsapp-line" aria-hidden="true"></i></span>
+                            <span><strong>{{ asset.name }}</strong><small>{{ 'mautic.meta.ui.synchronize_e32f49'|trans }} · WhatsApp</small></span>
+                            <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
+        </div>
     </div>
     <div class="table-responsive"><table class="table table-hover">
-        <thead><tr><th>Modelo</th><th>Idioma</th><th>Conta</th><th>Categoria</th><th>Situação</th><th>Qualidade</th><th>Sincronização</th><th></th></tr></thead>
-        <tbody>{% for template in listing.items %}<tr><td><strong>{{ template.name }}</strong>{% if template.status == 'REJECTED' and template.rejectedReason and template.rejectedReason != 'NONE' %}<details><summary>Motivo da rejeição</summary>{{ template.rejectedReason }}</details>{% endif %}</td><td>{{ template.language }}</td><td>{{ template.businessAccount.name }}</td><td>{{ template.category }}</td><td><span class="meta-badge {{ template.status }}">{{ {APPROVED:"Aprovado",REJECTED:"Rejeitado",PENDING:"Em análise"}[template.status]|default(template.status) }}</span></td><td>{{ template.qualityScore and template.qualityScore != 'UNKNOWN' ? template.qualityScore : 'Não informada' }}</td><td>{{ template.lastSyncedAt ? template.lastSyncedAt|date('d/m/Y H:i') : 'Nunca' }}</td><td><a class="btn btn-default btn-xs" href="{{ path('mautic_meta_template_edit', {templateId: template.id}) }}">Editar e visualizar</a><details><summary>Mais opções</summary><form method="post" action="{{ path('mautic_meta_template_delete', {templateId: template.id}) }}" style="display:inline" onsubmit="return confirm('Delete this template from Meta?')"><input type="hidden" name="_token" value="{{ csrf_token('meta_template_delete_' ~ template.id) }}"><button class="btn btn-danger btn-xs" type="submit">Excluir</button></form></details></td></tr>{% else %}<tr><td colspan="8" class="text-center text-muted">Nenhum modelo encontrado.</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>{{ 'mautic.meta.ui.template_b3a01b'|trans }}</th><th>{{ 'mautic.meta.ui.language_009433'|trans }}</th><th>{{ 'mautic.meta.ui.account_4d0751'|trans }}</th><th>{{ 'mautic.meta.ui.category_5966b0'|trans }}</th><th>{{ 'mautic.meta.ui.status_2d3abf'|trans }}</th><th>{{ 'mautic.meta.ui.quality_c7569e'|trans }}</th><th>{{ 'mautic.meta.ui.synchronization_da8aaf'|trans }}</th><th></th></tr></thead>
+        <tbody>{% for template in listing.items %}<tr><td><strong>{{ template.name }}</strong>{% if template.status == 'REJECTED' and template.rejectedReason and template.rejectedReason != 'NONE' %}<details><summary>{{ 'mautic.meta.ui.rejection_reason_7a22c6'|trans }}</summary>{{ template.rejectedReason }}</details>{% endif %}</td><td>{{ template.language }}</td><td>{{ template.businessAccount.name }}</td><td>{{ ('mautic.meta.ui.'~template.category|lower)|trans }}</td><td><span class="meta-badge {{ template.status }}">{{ {APPROVED:"Aprovado",REJECTED:"Rejeitado",PENDING:"Em análise"}[template.status]|default(template.status) }}</span></td><td>{{ template.qualityScore and template.qualityScore != 'UNKNOWN' ? template.qualityScore : ('mautic.meta.ui.not_provided_15c447'|trans) }}</td><td>{{ template.lastSyncedAt ? template.lastSyncedAt|date('mautic.meta.ui.date_time_format'|trans) : ('mautic.meta.ui.never_f951a9'|trans) }}</td><td><a class="btn btn-default btn-xs" href="{{ path('mautic_meta_template_edit', {templateId: template.id}) }}">{{ 'mautic.meta.ui.edit_and_preview_e9c7f2'|trans }}</a><details><summary>{{ 'mautic.meta.ui.more_options_8f453e'|trans }}</summary><form method="post" action="{{ path('mautic_meta_template_delete', {templateId: template.id}) }}" style="display:inline" onsubmit="return confirm({{ ('mautic.meta.ui.delete_this_template_from_meta_57d3eb'|trans)|json_encode|e('html_attr') }})"><input type="hidden" name="_token" value="{{ csrf_token('meta_template_delete_' ~ template.id) }}"><button class="btn btn-danger btn-xs" type="submit">{{ 'mautic.meta.ui.delete_8e7c13'|trans }}</button></form></details></td></tr>{% else %}<tr><td colspan="8" class="text-center text-muted">{{ 'mautic.meta.ui.no_templates_found_e21a35'|trans }}</td></tr>{% endfor %}</tbody>
     </table></div>{{ include('@MauticMeta/Shared/pagination.html.twig') }}
 </div>
 {% endblock %}

@@ -10,19 +10,19 @@
             <div class="panel-heading">
                 <form method="get">
                     <select name="channel">
-                        <option value="">All channels</option>
+                        <option value="">{{ 'mautic.meta.ui.all_channels_44265e'|trans }}</option>
                         <option value="whatsapp" {{ channelFilter == 'whatsapp' ? 'selected' }}>WhatsApp</option>
                         <option value="instagram" {{ channelFilter == 'instagram' ? 'selected' }}>Instagram</option>
                     </select>
                     <select name="status">
-                        <option value="">All statuses</option>
+                        <option value="">{{ 'mautic.meta.ui.all_statuses_3e985e'|trans }}</option>
                         {% for state in ['open', 'pending', 'resolved', 'archived'] %}
                             <option value="{{ state }}" {{ statusFilter == state ? 'selected' }}>
                                 {{ state }}
                             </option>
                         {% endfor %}
                     </select>
-                    <button class="btn btn-default btn-xs">Filter</button>
+                    <button class="btn btn-default btn-xs">{{ 'mautic.meta.ui.filter_d878f8'|trans }}</button>
                 </form>
             </div>
 
@@ -43,7 +43,7 @@
                         {% endif %}
                     </a>
                 {% else %}
-                    <div class="list-group-item text-muted">No conversations yet.</div>
+                    <div class="list-group-item text-muted">{{ 'mautic.meta.ui.no_conversations_yet_6471b1'|trans }}</div>
                 {% endfor %}
             </div>
         </div>
@@ -74,7 +74,7 @@
                                 </option>
                             {% endfor %}
                         </select>
-                        <button class="btn btn-default btn-xs">Update</button>
+                        <button class="btn btn-default btn-xs">{{ 'mautic.meta.ui.update_7ed81f'|trans }}</button>
                     </form>
                 </div>
 
@@ -88,7 +88,7 @@
                             <div>{{ message.payload|json_encode }}</div>
                         </div>
                     {% else %}
-                        <p class="text-muted">No messages.</p>
+                        <p class="text-muted">{{ 'mautic.meta.ui.no_messages_d2a116'|trans }}</p>
                     {% endfor %}
                 </div>
 
@@ -108,17 +108,17 @@
                                 name="text"
                                 required
                                 rows="2"
-                                placeholder="Write a reply"
+                                placeholder="{{ 'mautic.meta.ui.write_a_reply_789ee3'|trans|e('html_attr') }}"
                             ></textarea>
                             <span class="input-group-btn">
-                                <button class="btn btn-primary" type="submit">Send</button>
+                                <button class="btn btn-primary" type="submit">{{ 'mautic.meta.ui.send_a91a95'|trans }}</button>
                             </span>
                         </div>
                     </form>
                 </div>
             </div>
         {% else %}
-            <div class="alert alert-info">Select a conversation.</div>
+            <div class="alert alert-info">{{ 'mautic.meta.ui.select_a_conversation_77817a'|trans }}</div>
         {% endif %}
     </div>
 </div>

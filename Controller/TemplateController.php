@@ -48,7 +48,7 @@ final class TemplateController extends CommonController
             throw $this->createNotFoundException();
         }
         $result = $manager->synchronize($asset);
-        $this->addFlash('notice', sprintf('Templates synchronized: %d created, %d updated.', $result['created'], $result['updated']));
+        $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.templates_synced', ['%created%' => $result['created'], '%updated%' => $result['updated']]));
 
         return $this->redirectToRoute('mautic_meta_templates');
     }
@@ -63,9 +63,9 @@ final class TemplateController extends CommonController
             try {
                 $data = $form->getData();
                 $account = $assets->find((int) $data['business_account_id']);
-                if (!$account instanceof MetaAsset) { throw new \InvalidArgumentException('WhatsApp Business Account was not found.'); }
+                if (!$account instanceof MetaAsset) { throw new \InvalidArgumentException($this->translator->trans('mautic.meta.ui.whatsapp_business_account_was_not_found')); }
                 $manager->create($account, (string) $data['name'], (string) $data['language'], (string) $data['category'], $this->components((string) $data['components_json']));
-                $this->addFlash('notice', 'WhatsApp template submitted to Meta.');
+                $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.whatsapp_template_submitted_to_meta'));
 
                 return $this->redirectToRoute('mautic_meta_templates');
             } catch (\Throwable $exception) { $this->addFlash('error', $exception->getMessage()); }
@@ -86,7 +86,7 @@ final class TemplateController extends CommonController
             try {
                 $submitted = $form->getData();
                 $manager->update($template, (string) $submitted['category'], $this->components((string) $submitted['components_json']));
-                $this->addFlash('notice', 'WhatsApp template update submitted to Meta.');
+                $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.whatsapp_template_update_submitted_to_meta'));
 
                 return $this->redirectToRoute('mautic_meta_templates');
             } catch (\Throwable $exception) { $this->addFlash('error', $exception->getMessage()); }
@@ -100,7 +100,7 @@ final class TemplateController extends CommonController
         if (!$permissions->isGranted('meta:templates:delete') || !$this->isCsrfTokenValid('meta_template_delete_'.$templateId, (string) $request->request->get('_token'))) { throw $this->createAccessDeniedException(); }
         $template = $templates->find($templateId);
         if (!$template instanceof WhatsAppTemplate) { throw $this->createNotFoundException(); }
-        try { $manager->delete($template); $this->addFlash('notice', 'WhatsApp template deleted from Meta.'); } catch (\Throwable $exception) { $this->addFlash('error', $exception->getMessage()); }
+        try { $manager->delete($template); $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.whatsapp_template_deleted_from_meta')); } catch (\Throwable $exception) { $this->addFlash('error', $exception->getMessage()); }
 
         return $this->redirectToRoute('mautic_meta_templates');
     }
@@ -122,7 +122,7 @@ final class TemplateController extends CommonController
     private function components(string $json): array
     {
         $components = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($components) || !array_is_list($components)) { throw new \InvalidArgumentException('Components JSON must be an array.'); }
+        if (!is_array($components) || !array_is_list($components)) { throw new \InvalidArgumentException($this->translator->trans('mautic.meta.ui.components_json_must_be_an_array')); }
 
         return $components;
     }

@@ -10,7 +10,7 @@ use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 /**
  * @extends CommonRepository<MetaAsset>
  */
-final class MetaAssetRepository extends CommonRepository
+class MetaAssetRepository extends CommonRepository
 {
     /**
      * @return list<MetaAsset>
@@ -20,5 +20,8 @@ final class MetaAssetRepository extends CommonRepository
         return $this->findBy(['type' => $type->value, 'isPublished' => true, 'status' => 'active'], ['name' => 'ASC']);
     }
 
-    public function getTableAlias(): string { return 'ma'; }
+    public function getTableAlias(): string
+    {
+        return 'ma';
+    }
 }

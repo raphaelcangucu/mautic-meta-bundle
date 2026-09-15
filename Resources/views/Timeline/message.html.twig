@@ -1,7 +1,7 @@
 {% set message = event.extra.message %}
 <dl class="dl-horizontal">
     <dt>{{ 'mautic.core.type'|trans }}</dt><dd>{{ message.messageType }}</dd>
-    <dt>Status</dt><dd>{{ message.status }}</dd>
+    <dt>{{ 'mautic.meta.ui.status_2d3abf'|trans }}</dt><dd>{{ message.status }}</dd>
     <dt>{{ 'mautic.meta.direction'|trans }}</dt><dd>{{ message.direction }}</dd>
     <dt>{{ 'mautic.meta.recipient'|trans }}</dt><dd>{{ message.recipient }}</dd>
     {% if message.externalId %}<dt>Meta ID</dt><dd>{{ message.externalId }}</dd>{% endif %}

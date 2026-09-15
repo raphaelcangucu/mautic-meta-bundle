@@ -20,6 +20,7 @@ class MetaConnection extends FormEntity
     private string $name = '';
     private ?string $description = null;
     private string $appId = '';
+    private string $businessId = '';
     private string $encryptedAppSecret = '';
     private string $encryptedAccessToken = '';
     private string $encryptedVerifyToken = '';
@@ -47,10 +48,11 @@ class MetaConnection extends FormEntity
         $builder = new ClassMetadataBuilder($metadata);
         $builder->setTable('meta_connections')
             ->setCustomRepositoryClass(MetaConnectionRepository::class)
-            ->addUniqueConstraint(['app_id'], 'meta_connection_app_id')
+            ->addUniqueConstraint(['app_id', 'business_id'], 'meta_connection_app_business')
             ->addIndex(['status'], 'meta_connection_status');
         $builder->addIdColumns();
         $builder->addField('appId', Types::STRING, ['columnName' => 'app_id', 'length' => 191]);
+        $builder->addField('businessId', Types::STRING, ['columnName' => 'business_id', 'length' => 191, 'options' => ['default' => '']]);
         $builder->addField('encryptedAppSecret', Types::TEXT, ['columnName' => 'encrypted_app_secret']);
         $builder->addField('encryptedAccessToken', Types::TEXT, ['columnName' => 'encrypted_access_token']);
         $builder->addField('encryptedVerifyToken', Types::TEXT, ['columnName' => 'encrypted_verify_token']);
@@ -97,6 +99,23 @@ class MetaConnection extends FormEntity
     public function getAppId(): string
     {
         return $this->appId;
+    }
+
+    public function getBusinessId(): string
+    {
+        return $this->businessId;
+    }
+
+    public function setBusinessId(string $value): self
+    {
+        $this->businessId = $value;
+
+        return $this;
+    }
+
+    public function isCustomer(): bool
+    {
+        return '' !== $this->businessId;
     }
 
     public function setAppId(string $appId): self
@@ -211,7 +230,7 @@ class MetaConnection extends FormEntity
             $asset->setConnection($this);
         }
 
-return $this;
+        return $this;
     }
 
     public function removeAsset(MetaAsset $asset): self

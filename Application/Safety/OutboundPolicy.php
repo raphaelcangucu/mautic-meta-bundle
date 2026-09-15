@@ -16,12 +16,20 @@ final class OutboundPolicy
         private Connection $connection
     ) {}
 
-    public function assertAllowed(MetaAsset $asset, string $channel, string $recipient, string $messageType, ?int $contactId = null): void
+    public function assertAllowed(MetaAsset $asset, string $channel, string $recipient, string $messageType, ?int $contactId = null, bool $customerServiceReply = false): void
     {
         $table = (defined('MAUTIC_TABLE_PREFIX') ? MAUTIC_TABLE_PREFIX : '').'meta_messages';
         $settings = $asset->getSettings();
         if (false === ($settings['anti_spam_enabled'] ?? true)) {
             throw new \DomainException('Outbound anti-spam protection cannot be disabled. Adjust its limits instead.');
+        }
+
+        // A free-form service reply is part of a customer-initiated conversation, not
+        // an unsolicited outbound send. The sender only sets this flag after finding
+        // an inbound WhatsApp message in the current 24-hour service window. This
+        // applies equally to a human reply and to the already-guarded inbox AI agent.
+        if ($customerServiceReply && 'whatsapp' === $channel && 'text' === $messageType) {
+            return;
         }
 
         $defaults = 'whatsapp' === $channel

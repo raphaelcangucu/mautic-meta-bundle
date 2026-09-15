@@ -37,3 +37,54 @@
 @media(max-width:650px){.meta-ui .meta-account-row{grid-template-columns:minmax(0,1fr) auto}.meta-ui .meta-account-row .meta-person{grid-column:1/-1}.meta-ui .meta-account-status{grid-column:1}.meta-ui .meta-account-row>.btn{grid-column:2}}
 
 .meta-ui .meta-operations-table td:nth-child(5){min-width:150px;overflow-wrap:normal!important;word-break:normal!important}.meta-ui .panel>.panel-heading>strong{flex:1;text-align:left}.meta-ui .panel>.panel-heading>.text-muted{flex:0 0 auto;text-align:right}
+
+/* Compact template actions: one predictable sync entry point for every WABA. */
+.meta-ui .meta-template-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
+.meta-ui .meta-template-toolbar>.btn{display:inline-flex;align-items:center;gap:6px}
+.meta-ui .meta-action-menu{position:relative;padding:0!important}
+.meta-ui .meta-action-menu[open]{padding-bottom:0}
+.meta-ui .meta-action-menu>summary{display:inline-flex;align-items:center;gap:7px;list-style:none;padding:8px 12px;color:#fff}
+.meta-ui .meta-action-menu>summary::-webkit-details-marker{display:none}
+.meta-ui .meta-action-menu>summary:focus-visible{outline:2px solid #8992cb;outline-offset:2px}
+.meta-ui .meta-action-menu__chevron{transition:transform .16s ease}
+.meta-ui .meta-action-menu[open] .meta-action-menu__chevron{transform:rotate(180deg)}
+.meta-ui .meta-action-menu__panel{position:absolute;z-index:1050;top:calc(100% + 8px);right:0;width:min(340px,calc(100vw - 40px));padding:7px;background:#fff;border:1px solid var(--meta-border);border-radius:10px;box-shadow:0 12px 34px rgba(32,39,65,.16)}
+.meta-ui .meta-action-menu__heading{padding:7px 9px 9px;color:#7a8295;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.meta-ui .meta-action-menu__panel form{display:block;margin:0}
+.meta-ui .meta-action-menu__item{display:grid;grid-template-columns:34px minmax(0,1fr) 18px;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:7px;background:transparent;color:#343b4f;text-align:left;cursor:pointer}
+.meta-ui .meta-action-menu__item:hover,.meta-ui .meta-action-menu__item:focus-visible{background:#f3f5fb;outline:0}
+.meta-ui .meta-action-menu__item strong,.meta-ui .meta-action-menu__item small{display:block;overflow-wrap:anywhere}
+.meta-ui .meta-action-menu__item small{margin-top:2px;color:#7a8295;font-weight:400}
+.meta-ui .meta-action-menu__icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#eef8f2;color:#236c49;font-size:17px}
+@media(max-width:650px){.meta-ui .meta-template-toolbar{align-items:stretch;flex-direction:column}.meta-ui .meta-template-toolbar>.btn,.meta-ui .meta-action-menu>summary{justify-content:center;width:100%}.meta-ui .meta-action-menu__panel{left:0;right:auto;width:100%}}
+
+/* WhatsApp operational health is based on persisted message evidence, not API authorization alone. */
+.meta-ui .meta-health-intro{display:flex;align-items:flex-start;gap:13px;margin:0 0 18px;padding:16px 18px;border:1px solid #dce8e1;border-radius:10px;background:linear-gradient(135deg,#f5fbf7,#f9fafc)}
+.meta-ui .meta-health-intro__icon{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:#e3f4e9;color:#27724b;font-size:19px;flex:0 0 auto}
+.meta-ui .meta-health-intro strong{display:block;color:#294236;font-size:14px}
+.meta-ui .meta-health-intro p{margin-top:4px;line-height:1.45}
+.meta-ui .meta-authorization-label{display:inline-block;margin-left:10px;color:#7a8293;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.meta-ui .meta-account-row--health{border-left:3px solid #e4e7ef;background:#fff}
+.meta-ui .meta-account-row--health.meta-health--healthy{border-left-color:#35a567;background:linear-gradient(90deg,#fbfefc 0,#fff 42%)}
+.meta-ui .meta-account-row--health.meta-health--degraded{border-left-color:#cf5360;background:linear-gradient(90deg,#fffafa 0,#fff 42%)}
+.meta-ui .meta-operational-health{grid-column:1/-1;margin:2px 0 1px;padding:16px;border:1px solid #e1e5ec;border-radius:9px;background:#f9fafc}
+.meta-ui .meta-operational-health__headline{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.meta-ui .meta-operational-health__state{display:inline-flex;align-items:center;gap:8px;color:#566075}
+.meta-ui .meta-operational-health__state i{font-size:19px;color:#758097}
+.meta-ui .meta-health--healthy .meta-operational-health__state,.meta-ui .meta-health--healthy .meta-operational-health__state i{color:#28734c}
+.meta-ui .meta-health--degraded .meta-operational-health__state,.meta-ui .meta-health--degraded .meta-operational-health__state i{color:#a73a46}
+.meta-ui .meta-phone-suffix{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#edf0f5;color:#5c6578;font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.meta-ui .meta-phone-suffix.is-active{background:#e3f4e9;color:#246b47;box-shadow:0 0 0 1px #cee9d8 inset}
+.meta-ui .meta-phone-suffix.is-active:before{content:"";width:7px;height:7px;border-radius:50%;background:#34a568;box-shadow:0 0 0 3px #cfeada}
+.meta-ui .meta-health-signals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.meta-ui .meta-health-signal{display:flex;align-items:flex-start;gap:10px;min-width:0;padding:12px;background:#fff;border:1px solid #e7eaf0;border-radius:8px}
+.meta-ui .meta-health-signal__icon{display:inline-flex;align-items:center;justify-content:center;width:31px;height:31px;border-radius:8px;background:#eef1f6;color:#667087;font-size:16px;flex:0 0 auto}
+.meta-ui .meta-health-signal__icon.is-inbound{background:#e9f6ee;color:#27724b}
+.meta-ui .meta-health-signal__icon.is-outbound{background:#eef1fc;color:#4d59a1}
+.meta-ui .meta-health-signal>div{min-width:0}
+.meta-ui .meta-health-signal small,.meta-ui .meta-health-signal strong{display:block}
+.meta-ui .meta-health-signal strong{margin:3px 0 7px;color:#394156;font-size:12px}
+.meta-ui .meta-health-signal .meta-chip{font-size:10px;padding:3px 6px}
+.meta-ui .meta-health-signal p{margin-top:6px;font-size:10px;line-height:1.35}
+@media(max-width:900px){.meta-ui .meta-health-signals{grid-template-columns:1fr 1fr}.meta-ui .meta-health-signal--authorization{grid-column:1/-1}}
+@media(max-width:650px){.meta-ui .meta-operational-health__headline{align-items:flex-start;flex-direction:column}.meta-ui .meta-health-signals{grid-template-columns:1fr}.meta-ui .meta-health-signal--authorization{grid-column:auto}}

@@ -15,12 +15,19 @@ final class ContactMatcher
     public function __construct(
         private LeadModel $leadModel,
         private EntityManagerInterface $entityManager,
-    ) {}
+    ) {
+    }
 
     public function match(MetaAsset $asset, string $externalId): ?Lead
     {
         $externalId = trim($externalId);
         if ('' === $externalId) {
+            return null;
+        }
+
+        // Customer identities retain their explicitly linked contact. Never match
+        // a new customer's inbound number against the shared CRM address book.
+        if ($asset->getConnection()->isCustomer()) {
             return null;
         }
 

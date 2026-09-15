@@ -35,4 +35,18 @@ final class PhoneNormalizerTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         (new PhoneNormalizer())->normalizeImported('98417391', 'BR');
     }
+
+    public function testBrazilianMetaRecipientAliasesContainCanonicalAndLegacyForms(): void
+    {
+        $normalizer = new PhoneNormalizer();
+
+        self::assertSame(
+            ['5531984326486', '553184326486'],
+            $normalizer->equivalentRecipients('553184326486', 'BR'),
+        );
+        self::assertSame(
+            ['5531984326486', '553184326486'],
+            $normalizer->equivalentRecipients('+55 31 98432-6486', 'BR'),
+        );
+    }
 }

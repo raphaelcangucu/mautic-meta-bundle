@@ -86,7 +86,7 @@ final class AssetManager
             ->setPhoneNumber($this->nullable($data['phone_number'] ?? null))
             ->setIsDefault((bool) ($data['is_default'] ?? false))
             ->setSettings([
-                ...array_intersect_key($existingSettings, array_flip(['facebook_reply_enabled', 'facebook_read_enabled'])),
+                ...array_intersect_key($existingSettings, array_flip(['facebook_reply_enabled', 'facebook_read_enabled', 'waba_id', 'provider_readiness', 'whatsapp_business_profile'])),
                 'default_region' => strtoupper((string) ($data['default_region'] ?? 'BR')),
                 'trusted_import_default_region' => strtoupper((string) ($data['trusted_import_default_region'] ?? $existingSettings['trusted_import_default_region'] ?? $data['default_region'] ?? 'BR')),
                 'trusted_import_convert_legacy_br_mobile' => (bool) ($data['trusted_import_convert_legacy_br_mobile'] ?? $existingSettings['trusted_import_convert_legacy_br_mobile'] ?? true),

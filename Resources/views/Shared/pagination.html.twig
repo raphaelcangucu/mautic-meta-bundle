@@ -1,4 +1,4 @@
 {% set params = listQuery %}{% set route = app.request.attributes.get('_route') %}
-<div class="meta-pagination"><span>{{ listing.total }} resultados · página {{ listing.page }} de {{ listing.pages }}</span><div class="meta-actions">
-{% if listing.page > 1 %}<a class="btn btn-default" href="{{ path(route, params|merge({(listing.pageKey):listing.page-1})) }}">← Anterior</a>{% endif %}
-{% if listing.page < listing.pages %}<a class="btn btn-default" href="{{ path(route, params|merge({(listing.pageKey):listing.page+1})) }}">Próxima →</a>{% endif %}</div></div>
+<div class="meta-pagination"><span>{{ 'mautic.meta.ui.pagination_summary'|trans({'%total%':listing.total,'%page%':listing.page,'%pages%':listing.pages}) }}</span><div class="meta-actions">
+{% if listing.page > 1 %}<a class="btn btn-default" href="{{ path(route, params|merge({(listing.pageKey):listing.page-1})) }}">{{ 'mautic.meta.ui.previous_87b0f8'|trans }}</a>{% endif %}
+{% if listing.page < listing.pages %}<a class="btn btn-default" href="{{ path(route, params|merge({(listing.pageKey):listing.page+1})) }}">{{ 'mautic.meta.ui.next_55175a'|trans }}</a>{% endif %}</div></div>

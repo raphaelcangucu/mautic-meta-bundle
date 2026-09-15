@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\MauticMetaBundle\Controller;
 
+use MauticPlugin\MauticMetaBundle\Application\Queue\ImmediateOutboundDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundQueue;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnectionRepository;
@@ -21,6 +22,7 @@ final class AdapterReplyController
         private MetaConversationRepository $conversations,
         private CredentialVault $vault,
         private OutboundQueue $queue,
+        private ImmediateOutboundDispatcher $immediateDispatcher,
     ) {
     }
 
@@ -80,17 +82,21 @@ final class AdapterReplyController
             [
                 'recipient' => $conversation->getRecipient(),
                 'text'      => $text,
+                '_origin'   => 'inbox_human',
+                '_inbox_conversation_id' => $conversation->getId(),
             ],
             $conversation->getContact(),
             5,
             hash('sha256', $connectionId.':'.$adapterName.':'.$key),
         );
+        $this->immediateDispatcher->dispatch($job);
 
         return new JsonResponse([
-            'status'         => 'queued',
+            'status'         => 'completed' === $job->getStatus() ? 'sent' : $job->getStatus(),
             'jobId'          => $job->getId(),
+            'messageLogId'   => $job->getMessageLogId(),
             'conversationId' => $conversation->getId(),
-        ], Response::HTTP_ACCEPTED);
+        ], 'completed' === $job->getStatus() ? Response::HTTP_OK : Response::HTTP_ACCEPTED);
     }
 
     private function adapter(MetaConnection $connection, string $name): ?array

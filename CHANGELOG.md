@@ -1,37 +1,39 @@
 # Changelog
 
-## 0.12.2
+## 0.13.0 - 2026-09-15
+
+- Add the internal Tech Provider console and Embedded Signup flow with company, WABA, phone-number and token isolation.
+- Add operational WhatsApp diagnostics based on real inbound, outbound and delivery evidence instead of authorization alone.
+- Add WhatsApp Business Profile editing and the official resumable-upload flow for profile pictures.
+- Dispatch support and AI service-window replies immediately while retaining consent, DNC, idempotency and channel-policy checks.
+- Resolve Brazilian WhatsApp recipients with or without the mobile ninth digit to one canonical conversation.
+- Preserve exact message recipients for delivery auditing while preventing future duplicate conversation rows.
+
+## 0.12.2 - 2026-09-14
 
 - Canonicalize inbound Brazilian WhatsApp identifiers before contact and identity matching when Meta omits the mobile ninth digit.
 - Preserve the existing identity, opt-in state and contact timeline instead of creating an unlinked duplicate.
 
-## 0.12.1
+## 0.12.1 - 2026-09-13
 
 - Redesign Meta administration with Mautic colors, shared navigation and channel/status/type badges.
-- Add server-side filters and pagination (25, 50 or 100 rows) for account, template, identity and operations lists.
-- Fix native AJAX navigation and empty account filters; preserve list context when returning from forms.
+- Add server-side filters and pagination for account, template, identity and operations lists.
 - Add channel-specific forms and a safe WhatsApp template preview that preserves advanced components.
-- Align account status columns and preserve identifiers in horizontally scrollable tables.
-- Add real UI screenshots, interface documentation, functional navigation tests and template editor checks.
-- Backward-compatible with Inbox 1.0.x; no database migration.
+- Keep list navigation and account context stable across forms and synchronizations.
 
-## 0.12.0
+## 0.12.0 - 2026-09-13
 
-- Add Facebook Messenger and feed comment processing, including comment edits and removals.
+- Add Facebook Messenger and feed comment processing alongside WhatsApp and Instagram.
 - Integrate the optional native support inbox with human takeover checks for direct and queued automation.
 - Resolve participant names, handles and profile images with cached, non-blocking lookups.
 - Route human WhatsApp replies using the conversation identity and retain uncertain sends for review.
-- Validate the Meta unit suite: 79 tests, 218 assertions.
 
+## 0.10.5 - 2026-09-13
 
-## 0.11.0 - 2026-09-13
-
-- Add native campaign decisions for Instagram comments filtered by account, exact media ID, and whole-word keyword, ignoring case and Portuguese accents.
-- Enroll and identify commenters, preserve per-comment campaign context, and queue one private report reply per comment.
-- Send Instagram messages through the linked Facebook Page with a derived Page credential kept in memory.
-- Persist webhook processing, contact links, and message outcomes explicitly; protect concurrent webhook processing and uncertain outbound results.
-- Support campaign re-entry after automatic exits while respecting explicit manual removal.
-- Validate the real comment-to-report flow and add regression coverage for matching, re-entry, replay, Page credentials, and queue safeguards.
+- Add an optional support-inbox boundary with a standalone no-op implementation.
+- Guard queued and direct Graph sends atomically when human takeover is active.
+- Hold transport-timeout outcomes for review instead of retrying a possibly accepted send.
+- Keep Instagram public comments in distinct conversations keyed by the exact comment.
 
 ## 0.10.4 - 2026-09-03
 

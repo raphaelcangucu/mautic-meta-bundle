@@ -1,9 +1,14 @@
 (function () {
     'use strict';
+    var translations = {}, locale = 'en-US';
+    function t(key, parameters) { var text = translations[key] || key; Object.keys(parameters || {}).forEach(function (name) { text = text.split('%'+name+'%').join(String(parameters[name])); }); return text; }
+
     function boot() {
         var root = document.querySelector('.meta-ui');
         if (!root || root.dataset.ready) return;
         root.dataset.ready = '1';
+        try { translations = JSON.parse(root.dataset.translations || '{}'); } catch (e) { translations = {}; }
+        locale = (root.dataset.locale || 'en_US').replace(/_/g, '-');
         // Keep list context in the browser without accepting arbitrary return URLs.
         var routes = ['/s/meta/connections', '/s/meta/whatsapp/templates', '/s/meta/identities', '/s/meta/operations'];
         routes.forEach(function (route) {
@@ -14,6 +19,19 @@
                     if (url.pathname === route && saved && (saved.split('?')[0] === route || (route.endsWith('identities') && /^\/s\/meta\/identities\/\d+$/.test(saved.split('?')[0])))) link.href = saved;
                 });
             } catch (e) { /* Navigation remains usable without browser storage. */ }
+        });
+        var actionMenus = Array.prototype.slice.call(root.querySelectorAll('[data-meta-action-menu]'));
+        actionMenus.forEach(function (menu) {
+            menu.addEventListener('toggle', function () {
+                if (!menu.open) return;
+                actionMenus.forEach(function (other) { if (other !== menu) other.open = false; });
+            });
+        });
+        document.addEventListener('click', function (event) {
+            actionMenus.forEach(function (menu) { if (menu.open && !menu.contains(event.target)) menu.open = false; });
+        });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') actionMenus.forEach(function (menu) { menu.open = false; });
         });
         var assetForm = root.querySelector('[data-meta-asset]');
         if (assetForm) {
@@ -32,7 +50,7 @@
             var part = components.find(function (c) { return c.type === 'BODY'; });
             tokens(body.value).forEach(function (token) {
                 var index = Number(token.replace(/\D/g,''))-1, label = document.createElement('label'), input = document.createElement('input');
-                label.textContent = 'Exemplo para ' + token; input.className = 'form-control'; input.dataset.token = token;
+                label.textContent = t("mautic.meta.ui.example_for_5509f0") + token; input.className = 'form-control'; input.dataset.token = token;
                 input.value = old[token] !== undefined ? old[token] : (part && part.example && part.example.body_text && part.example.body_text[0] && part.example.body_text[0][index]) || '';
                 label.appendChild(input); examples.appendChild(label); input.addEventListener('input', toJson);
             });
@@ -57,7 +75,7 @@
                 examples.textContent = ''; drawExamples(); display(); fail('');
                 if (!supported) form.querySelector('[data-template-advanced]').open = true;
                 return true;
-            } catch (e) { visual.hidden = true; fail('JSON inválido. Corrija a configuração antes de enviar; o conteúdo não foi descartado.'); return false; }
+            } catch (e) { visual.hidden = true; fail(t("mautic.meta.ui.invalid_json_correct_the_configuration_before_submitting_your_con_f0e78c")); return false; }
         }
         function toJson() {
             if (visual.hidden) return;
@@ -71,7 +89,7 @@
             updating = true; json.value = JSON.stringify(components, null, 2); updating = false; display();
         }
         body.addEventListener('input', function () { drawExamples(); toJson(); }); footer.addEventListener('input', toJson); json.addEventListener('input', fromJson);
-        form.addEventListener('submit', function (event) { if (!fromJson() || !window.confirm('Enviar este conteúdo à Meta para análise? A alteração afeta o modelo desta conta.')) event.preventDefault(); });
+        form.addEventListener('submit', function (event) { if (!fromJson() || !window.confirm(t("mautic.meta.ui.submit_this_content_to_meta_for_review_this_change_affects_the_te_bbdd72"))) event.preventDefault(); });
         if (fromJson() && !visual.hidden) form.querySelector('[data-template-advanced]').open = false;
     }
     if (window.Mautic) window.Mautic.metaOnLoad = boot;

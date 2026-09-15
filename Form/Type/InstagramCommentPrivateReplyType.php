@@ -14,7 +14,7 @@ final class InstagramCommentPrivateReplyType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->add('message', TextareaType::class, [
-            'label' => 'Private report reply',
+            'label' => 'mautic.meta.ui.private_report_reply_3556df',
             'constraints' => [new NotBlank()],
             'attr' => ['rows' => 8],
         ]);

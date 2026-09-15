@@ -1,30 +1,6 @@
 # Mautic Meta Bundle
 
-Multi-account integration between Mautic 7 and the official Meta Graph API. WhatsApp, Instagram and Facebook/Messenger are independent channels backed by shared connections, encrypted credentials, assets, webhooks, queues, logs, and permissions.
-
-## Interface atual — v0.12.1
-
-Administração dos canais com o visual do Mautic: filtros, paginação no servidor, identificação por ícones e badges, formulários por canal e prévia de modelos WhatsApp.
-
-![Visão geral do conector Meta no Mautic](docs/screenshots/visao-geral.png)
-
-<details>
-<summary>Conexões e contas</summary>
-
-![Contas organizadas por canal, com situações alinhadas](docs/screenshots/conexoes.png)
-
-</details>
-
-<details>
-<summary>Histórico de mensagens</summary>
-
-![Mensagens com badges de canal, tipo e situação](docs/screenshots/mensagens.png)
-
-</details>
-
-Capturas reais da instalação de validação, em setembro de 2026. Consulte o [guia da interface](docs/INTERFACE.md) e o [histórico de versões](CHANGELOG.md).
-
-O atendimento humano é um plugin separado: [Mautic Inbox Bundle](https://github.com/raphaelcangucu/mautic-inbox-bundle), compatível com esta versão. O conector administra autenticação, webhooks, identidades e envios; o Inbox administra as conversas e o trabalho dos atendentes.
+Multi-account integration between Mautic 7 and the official Meta Graph API. WhatsApp, Instagram and Facebook/Messenger are independent channels backed by shared connections, encrypted credentials, assets, webhooks, queues, logs, and permissions. Version 0.13.0 also provides an internal Tech Provider onboarding console for authorized customer WABAs.
 
 ## Implemented
 
@@ -62,6 +38,19 @@ O atendimento humano é um plugin separado: [Mautic Inbox Bundle](https://github
 - Business Manager Instagram asset IDs are resolved to canonical Instagram Graph IDs before profile, media, conversation, or messaging calls.
 - Individually evidenced WhatsApp landing opt-ins are registered through one idempotent service, with immutable audit records and later opt-out precedence.
 - Meta > Identities provides mandatory preview and confirmed historical synchronization directly from the persisted landing submission source.
+- The Tech Provider console performs Embedded Signup, isolates each authorized company and validates WABA, phone, webhook, template and real test-delivery evidence.
+- WhatsApp account screens expose operational health separately from Graph authorization and allow Business Profile fields and profile pictures to be updated through the official API.
+- Brazilian mobile identifiers received with or without the ninth digit resolve to one canonical conversation without rewriting the exact recipient stored on each message.
+
+## Tech Provider and Embedded Signup
+
+Open **Meta > Tech Provider** to onboard an authorized company through Facebook Login for Business. The server exchanges the returned code, verifies the owning business and WABA, stores customer credentials encrypted and creates or updates only the assets returned for that company. Reauthorization is idempotent and an asset already owned by another connection is rejected instead of being moved silently.
+
+After signup, use the same screen to validate the webhook subscription, phone registration, approved templates, consented test identity and final delivery state. An accepted API response is not presented as delivery: the operational status becomes healthy only from recent inbound evidence plus a `delivered` or `read` outbound webhook. Billing, business verification, display-name review and country restrictions remain Meta-side requirements. See [Tech Provider — implementação e homologação](TECH_PROVIDER.md) for rollout and recovery procedures.
+
+## Canonical WhatsApp conversations
+
+Meta can expose the same Brazilian mobile as either `55 + DDD + 8 digits` or `55 + DDD + 9 + 8 digits`. Incoming and outgoing messages now resolve both safe aliases before a conversation is created, then keep the conversation on the canonical E.164 recipient. The message log retains the exact delivery recipient for auditing. Existing duplicates can be previewed and consolidated with the Inbox command documented in `MauticInboxBundle` 1.0.13.
 
 ## Instagram comment to private report reply
 
@@ -169,9 +158,9 @@ Campaign actions queue messages by default. Permanent validation, consent, and D
 
 Open **Meta > Meta inbox** to read WhatsApp and Instagram conversations, filter by channel/status, mark a thread as open, pending, resolved, or archived, and queue a reply. Incoming messages reopen the conversation and increase its unread count; opening the thread marks it as read.
 
-## Safe initial sending limits
+## Sending limits and service-window replies
 
-Every outbound path (campaigns, queue, UI, and MCP) is checked immediately before it calls Meta. WhatsApp starts at 250 messages per asset/24h, 50/hour, 3 per recipient/24h, and a 60-second recipient cooldown. Instagram starts at 50 messages per asset/24h, 20/hour, 3 per recipient/24h, and a 5-minute recipient cooldown. These values are visible and may be lowered on each asset's create/edit screen; they cannot be raised beyond the conservative safety ceilings in this release. WhatsApp free-form content is blocked outside the 24-hour customer-service window; an approved template is required. Meta's account tier, quality controls, recipient consent, DNC, and API limits still apply and may be stricter.
+Every outbound path (campaigns, queue, UI, and MCP) is checked immediately before it calls Meta. Proactive WhatsApp and Instagram sends retain the configured local volume and cooldown controls. A free-form WhatsApp reply tied to a verified inbound message in the current 24-hour customer-service window is dispatched immediately and is not delayed by the proactive-send cooldown. Outside that window, an approved template is required. Consent, DNC, idempotency, human takeover, Meta account tier, quality controls and API limits continue to apply.
 
 ## Legacy migration
 
@@ -186,7 +175,7 @@ Disable the old plugin only after verifying the migrated connection, WABA, phone
 
 ## MCP
 
-With `MauticMcpBundle` 0.8 or newer enabled, the same services are exposed as `mautic_read_meta`, `mautic_send_meta_message`, and `mautic_manage_meta`.
+With `MauticMcpBundle` 0.15.1 or newer enabled, the same services are exposed as `mautic_read_meta`, `mautic_send_meta_message`, and `mautic_manage_meta`.
 
 ## Consent behavior
 
@@ -199,13 +188,3 @@ The Instagram architecture is informed by [OpenReply](https://github.com/diwenne
 ## License
 
 GPL-3.0-or-later.
-
-## Native support inbox (0.12.0)
-
-This release adds Facebook Messenger and Facebook feed comments alongside WhatsApp and Instagram. The optional MauticInboxBundle 1.0.0 provides the shared support interface; the connector continues to own channel credentials, identities, messages and outbound processing. Human takeover gates both direct and queued automation. Without the inbox bundle, the no-op integration preserves standalone operation.
-
-Participant names, handles and profile images are enriched when the channel API and granted permissions allow it. Facebook Page permissions and webhook subscriptions must be configured for the intended messaging and comment features.
-
-## Interface de administração
-
-Consulte [Interface, filtros e validação](docs/INTERFACE.md) para a organização das páginas, paginação, editor visual de modelos e funcionamento da navegação no Mautic.

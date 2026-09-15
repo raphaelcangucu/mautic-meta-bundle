@@ -28,7 +28,7 @@ final class WhatsAppConsentCampaignActionType extends AbstractType
         }
 
         $builder->add('asset_id', ChoiceType::class, [
-            'label'       => 'WhatsApp asset',
+            'label' => 'mautic.meta.ui.whatsapp_asset_fa6d00',
             'choices'     => $assets,
             'constraints' => [new NotBlank()],
         ]);

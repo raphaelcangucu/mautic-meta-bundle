@@ -10,6 +10,7 @@ use MauticPlugin\MauticMetaBundle\Application\Automation\CampaignMessageDispatch
 use MauticPlugin\MauticMetaBundle\Application\Contact\ContactMatcher;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
 use MauticPlugin\MauticMetaBundle\Application\Conversation\ConversationManager;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\ConsentKeywordMatcher;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\PhoneNormalizer;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
@@ -17,7 +18,6 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessageRepository;
-use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 
 final class WhatsAppWebhookProcessor
 {
@@ -37,7 +37,7 @@ final class WhatsAppWebhookProcessor
     ) {
     }
 
-    public function process(array $payload): array
+    public function process(array $payload, ?\MauticPlugin\MauticMetaBundle\Entity\MetaConnection $connection = null): array
     {
         $events = $this->parser->parse($payload);
         $received = 0;
@@ -45,7 +45,7 @@ final class WhatsAppWebhookProcessor
         $ignored = 0;
         $campaignMessages = [];
         foreach ($events['messages'] as $item) {
-            $asset = $this->phoneAsset($item['phoneNumberId']);
+            $asset = $this->phoneAsset($item['phoneNumberId'], $connection);
             $message = $item['message'];
             $externalId = (string) ($message['id'] ?? '');
             if (!$asset instanceof MetaAsset || '' === $externalId || $this->messages->findOneBy(['externalId' => $externalId]) instanceof MetaMessage) {
@@ -86,7 +86,7 @@ final class WhatsAppWebhookProcessor
             $status = $item['status'];
             $externalId = (string) ($status['id'] ?? '');
             $log = '' === $externalId ? null : $this->messages->findOneBy(['externalId' => $externalId]);
-            if (!$log instanceof MetaMessage) {
+            if (!$log instanceof MetaMessage || $log->getAsset()->getExternalId() !== $item['phoneNumberId'] || (null !== $connection && $log->getAsset()->getConnection()->getId() !== $connection->getId())) {
                 ++$ignored;
                 continue;
             }
@@ -107,16 +107,16 @@ final class WhatsAppWebhookProcessor
                 $this->campaigns->dispatch($message);
             }
             $this->adapters->dispatch($message, 'inbound' === $message->getDirection() ? 'message.received' : match ($message->getStatus()) {
-                'delivered' => 'message.delivered', 'read' => 'message.read', 'failed' => 'message.failed', default => 'message.sent'
+                'delivered' => 'message.delivered', 'read' => 'message.read', 'failed' => 'message.failed', default => 'message.sent',
             });
         }
 
         return compact('received', 'updated', 'ignored');
     }
 
-    private function phoneAsset(string $externalId): ?MetaAsset
+    private function phoneAsset(string $externalId, ?\MauticPlugin\MauticMetaBundle\Entity\MetaConnection $connection): ?MetaAsset
     {
-        $asset = $this->assets->findOneBy(['externalId' => $externalId, 'type' => AssetType::WhatsAppPhoneNumber->value]);
+        $asset = $this->assets->findOneBy(['externalId' => $externalId, 'type' => AssetType::WhatsAppPhoneNumber->value] + ($connection ? ['connection' => $connection] : []));
 
         return $asset instanceof MetaAsset ? $asset : null;
     }

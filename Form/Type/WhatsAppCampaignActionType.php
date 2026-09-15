@@ -28,15 +28,15 @@ final class WhatsAppCampaignActionType extends AbstractType
             $choices[$asset->getConnection()->getName().' — '.$asset->getName()] = $asset->getId();
         }
         $builder
-            ->add('asset_id', ChoiceType::class, ['label' => 'WhatsApp sender', 'choices' => $choices, 'constraints' => [new NotBlank()]])
-            ->add('mode', ChoiceType::class, ['label' => 'Message type', 'choices' => ['Approved template' => 'template', 'Free-form text (service window)' => 'text']])
-            ->add('phone_field', TextType::class, ['label' => 'Contact phone field', 'data' => $options['data']['phone_field'] ?? 'mobile', 'constraints' => [new NotBlank()]])
-            ->add('template_name', TextType::class, ['label' => 'Template name', 'required' => false])
-            ->add('language', TextType::class, ['label' => 'Template language', 'required' => false, 'data' => $options['data']['language'] ?? 'pt_BR'])
-            ->add('body_parameters', TextareaType::class, ['label' => 'Template body parameters, one per line', 'required' => false, 'attr' => ['rows' => 5]])
-            ->add('message', TextareaType::class, ['label' => 'Text message', 'required' => false, 'attr' => ['rows' => 8]])
-            ->add('queue', CheckboxType::class, ['label' => 'Queue with automatic retries', 'required' => false, 'data' => $options['data']['queue'] ?? true])
-            ->add('max_attempts', IntegerType::class, ['label' => 'Maximum attempts', 'data' => $options['data']['max_attempts'] ?? 5, 'attr' => ['min' => 1, 'max' => 10]]);
+            ->add('asset_id', ChoiceType::class, ['label' => 'mautic.meta.ui.whatsapp_sender_9f74aa', 'choices' => $choices, 'constraints' => [new NotBlank()]])
+            ->add('mode', ChoiceType::class, ['label' => 'mautic.meta.ui.message_type_d35f04', 'choices' => ['mautic.meta.ui.approved_template' => 'template', 'mautic.meta.ui.free_form_text' => 'text']])
+            ->add('phone_field', TextType::class, ['label' => 'mautic.meta.ui.contact_phone_field_b135dd', 'data' => $options['data']['phone_field'] ?? 'mobile', 'constraints' => [new NotBlank()]])
+            ->add('template_name', TextType::class, ['label' => 'mautic.meta.ui.template_name_077fcb', 'required' => false])
+            ->add('language', TextType::class, ['label' => 'mautic.meta.ui.template_language_c2b48e', 'required' => false, 'data' => $options['data']['language'] ?? 'pt_BR'])
+            ->add('body_parameters', TextareaType::class, ['label' => 'mautic.meta.ui.template_body_parameters_one_per_line_a3424a', 'required' => false, 'attr' => ['rows' => 5]])
+            ->add('message', TextareaType::class, ['label' => 'mautic.meta.ui.text_message_33f6cb', 'required' => false, 'attr' => ['rows' => 8]])
+            ->add('queue', CheckboxType::class, ['label' => 'mautic.meta.ui.queue_with_automatic_retries_3cf136', 'required' => false, 'data' => $options['data']['queue'] ?? true])
+            ->add('max_attempts', IntegerType::class, ['label' => 'mautic.meta.ui.maximum_attempts_7b6f5a', 'data' => $options['data']['max_attempts'] ?? 5, 'attr' => ['min' => 1, 'max' => 10]]);
     }
 
     public function getBlockPrefix(): string { return 'meta_whatsapp_campaign_action'; }

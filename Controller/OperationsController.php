@@ -69,12 +69,12 @@ final class OperationsController extends CommonController
             throw $this->createNotFoundException();
         }
         if ('failed' !== $delivery->getStatus()) {
-            $this->addFlash('error', 'Only failed adapter deliveries can be retried.');
+            $this->addFlash('error', $this->translator->trans('mautic.meta.ui.only_failed_adapter_deliveries_can_be_retried'));
         } else {
             $delivery->setStatus('pending')->setAttempts(0)->setAvailableAt(new \DateTimeImmutable())->setCompletedAt(null)->setLastError(null);
             $entityManager->persist($delivery);
             $entityManager->flush();
-            $this->addFlash('notice', 'Adapter delivery queued for retry.');
+            $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.adapter_delivery_queued_for_retry'));
         }
 
         return $this->redirectToRoute('mautic_meta_operations');
@@ -91,7 +91,7 @@ final class OperationsController extends CommonController
         }
         try {
             $manager->retry($job);
-            $this->addFlash('notice', 'Meta job queued for retry.');
+            $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.meta_job_queued_for_retry'));
         } catch (\DomainException $exception) {
             $this->addFlash('error', $exception->getMessage());
         }
@@ -110,7 +110,7 @@ final class OperationsController extends CommonController
         }
         try {
             $manager->cancel($job);
-            $this->addFlash('notice', 'Meta job cancelled.');
+            $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.meta_job_cancelled'));
         } catch (\DomainException $exception) {
             $this->addFlash('error', $exception->getMessage());
         }
@@ -129,9 +129,9 @@ final class OperationsController extends CommonController
         }
         try {
             $replay->replay($event);
-            $this->addFlash('notice', 'Webhook event replayed successfully.');
+            $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.webhook_event_replayed_successfully'));
         } catch (\Throwable $exception) {
-            $this->addFlash('error', 'Webhook replay failed: '.$exception->getMessage());
+            $this->addFlash('error', $this->translator->trans('mautic.meta.ui.replay_failed', ['%error%' => $exception->getMessage()]));
         }
 
         return $this->redirectToRoute('mautic_meta_operations');

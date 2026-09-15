@@ -21,32 +21,32 @@ final class MetaAssetType extends AbstractType
     {
         $builder
             ->add('name', TextType::class, ['label' => 'mautic.core.name', 'constraints' => [new NotBlank()]])
-            ->add('type', ChoiceType::class, ['label' => 'Tipo de conta', 'choices' => [
-                'WhatsApp Business Account' => AssetType::WhatsAppBusinessAccount->value,
-                'WhatsApp phone number' => AssetType::WhatsAppPhoneNumber->value,
-                'Instagram professional account' => AssetType::InstagramAccount->value,
-                'Facebook Page' => AssetType::FacebookPage->value,
+            ->add('type', ChoiceType::class, ['label' => 'mautic.meta.ui.account_type_d3cb4d', 'choices' => [
+                'mautic.meta.ui.whatsapp_business_account_881154' => AssetType::WhatsAppBusinessAccount->value,
+                'mautic.meta.ui.whatsapp_phone_number' => AssetType::WhatsAppPhoneNumber->value,
+                'mautic.meta.ui.instagram_professional_account' => AssetType::InstagramAccount->value,
+                'mautic.meta.ui.facebook_page' => AssetType::FacebookPage->value,
             ]])
-            ->add('external_id', TextType::class, ['label' => 'ID da conta na Meta', 'constraints' => [new NotBlank()]])
-            ->add('username', TextType::class, ['required' => false, 'label' => 'Usuário do Instagram'])
-            ->add('phone_number', TextType::class, ['required' => false, 'label' => 'Telefone de exibição'])
-            ->add('default_region', TextType::class, ['required' => false, 'label' => 'País padrão do telefone'])
+            ->add('external_id', TextType::class, ['label' => 'mautic.meta.ui.meta_account_id_0c0d93', 'constraints' => [new NotBlank()]])
+            ->add('username', TextType::class, ['required' => false, 'label' => 'mautic.meta.ui.instagram_username_9fb7e4'])
+            ->add('phone_number', TextType::class, ['required' => false, 'label' => 'mautic.meta.ui.display_phone_number_521752'])
+            ->add('default_region', TextType::class, ['required' => false, 'label' => 'mautic.meta.ui.default_phone_country_095c50'])
             ->add('trusted_import_default_region', TextType::class, [
                 'required' => false,
-                'label' => 'País dos telefones importados',
-                'help' => 'País usado para números nacionais importados pela API confiável. Ex.: BR.',
+                'label' => 'mautic.meta.ui.country_for_imported_phone_numbers_968059',
+                'help' => 'mautic.meta.ui.country_used_for_national_numbers_imported_through_the_trusted_ap_c4f54a',
             ])
             ->add('trusted_import_convert_legacy_br_mobile', CheckboxType::class, [
                 'required' => false,
-                'label' => 'Adicionar o nono dígito aos celulares brasileiros antigos',
+                'label' => 'mautic.meta.ui.add_the_ninth_digit_to_legacy_brazilian_mobile_numbers_0af6eb',
             ])
-            ->add('contact_match_field', TextType::class, ['required' => false, 'label' => 'Campo do contato para vínculo exato', 'help' => 'Alias do campo com número WhatsApp ou ID Instagram. No WhatsApp, também é considerada a correspondência única de telefone/celular.'])
-            ->add('require_opt_in', CheckboxType::class, ['required' => false, 'label' => 'Exigir consentimento explícito para WhatsApp'])
-            ->add('daily_send_limit', IntegerType::class, ['required' => false, 'label' => 'Máximo de mensagens por dia', 'help' => 'Pode ser reduzido. Teto: WhatsApp 250; Instagram/Facebook 50.', 'constraints' => [new Positive()]])
-            ->add('hourly_send_limit', IntegerType::class, ['required' => false, 'label' => 'Máximo de mensagens por hora', 'help' => 'Teto: WhatsApp 50; Instagram/Facebook 20.', 'constraints' => [new Positive()]])
-            ->add('recipient_daily_limit', IntegerType::class, ['required' => false, 'label' => 'Máximo por destinatário por dia', 'help' => 'Entre 1 e 3, para limitar contatos repetidos por campanhas.', 'constraints' => [new Positive()]])
-            ->add('recipient_cooldown_seconds', IntegerType::class, ['required' => false, 'label' => 'Intervalo por destinatário (segundos)', 'help' => 'Mínimo: WhatsApp 60 segundos; Instagram/Facebook 300 segundos.', 'constraints' => [new Positive()]])
-            ->add('is_default', CheckboxType::class, ['required' => false, 'label' => 'Conta padrão deste canal']);
+            ->add('contact_match_field', TextType::class, ['required' => false, 'label' => 'mautic.meta.ui.contact_field_for_exact_matching_753453', 'help' => 'mautic.meta.ui.field_alias_containing_a_whatsapp_number_or_instagram_id_whatsapp_e33abd'])
+            ->add('require_opt_in', CheckboxType::class, ['required' => false, 'label' => 'mautic.meta.ui.require_explicit_whatsapp_consent_da2080'])
+            ->add('daily_send_limit', IntegerType::class, ['required' => false, 'label' => 'mautic.meta.ui.maximum_messages_per_day_f724e8', 'help' => 'mautic.meta.ui.can_be_reduced_maximum_whatsapp_250_instagram_facebook_50_a356fb', 'constraints' => [new Positive()]])
+            ->add('hourly_send_limit', IntegerType::class, ['required' => false, 'label' => 'mautic.meta.ui.maximum_messages_per_hour_3fd3bd', 'help' => 'mautic.meta.ui.maximum_whatsapp_50_instagram_facebook_20_4e962c', 'constraints' => [new Positive()]])
+            ->add('recipient_daily_limit', IntegerType::class, ['required' => false, 'label' => 'mautic.meta.ui.maximum_per_recipient_per_day_14e728', 'help' => 'mautic.meta.ui.between_1_and_3_to_limit_repeated_campaign_messages_a1fa83', 'constraints' => [new Positive()]])
+            ->add('recipient_cooldown_seconds', IntegerType::class, ['required' => false, 'label' => 'mautic.meta.ui.recipient_cooldown_seconds_48c5bd', 'help' => 'mautic.meta.ui.minimum_whatsapp_60_seconds_instagram_facebook_300_seconds_e6fe45', 'constraints' => [new Positive()]])
+            ->add('is_default', CheckboxType::class, ['required' => false, 'label' => 'mautic.meta.ui.default_account_for_this_channel_ff7124']);
     }
 
     public function configureOptions(OptionsResolver $resolver): void

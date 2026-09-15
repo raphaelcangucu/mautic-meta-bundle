@@ -6,6 +6,7 @@ namespace MauticPlugin\MauticMetaBundle\Controller;
 
 use Mautic\CoreBundle\Security\Permissions\CorePermissions;
 use MauticPlugin\MauticMetaBundle\Application\Conversation\ConversationManager;
+use MauticPlugin\MauticMetaBundle\Application\Queue\ImmediateOutboundDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundQueue;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConversation;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConversationRepository;
@@ -77,6 +78,7 @@ final class ConversationController extends AbstractController
         CorePermissions $permissions,
         MetaConversationRepository $conversations,
         OutboundQueue $queue,
+        ImmediateOutboundDispatcher $immediateDispatcher,
         InboxIntegrationInterface $inboxIntegration,
     ): RedirectResponse {
         if (!$permissions->isGranted('meta:messages:create') || !$this->isCsrfTokenValid('meta_conversation_reply_'.$conversationId, (string) $request->request->get('_token'))) {
@@ -107,10 +109,16 @@ final class ConversationController extends AbstractController
             [
                 'recipient' => $conversation->getRecipient(),
                 'text'      => $text,
+                '_origin'   => 'inbox_human',
+                '_inbox_conversation_id' => $conversation->getId(),
             ],
             $conversation->getContact(),
         );
-        $this->addFlash('notice', 'Reply queued as job #'.$job->getId().'.');
+        $immediateDispatcher->dispatch($job);
+        $this->addFlash(
+            'notice',
+            'completed' === $job->getStatus() ? 'Reply sent.' : 'Reply queued as job #'.$job->getId().'.',
+        );
 
         return $this->redirectToRoute('mautic_meta_conversation_view', ['conversationId' => $conversationId], Response::HTTP_SEE_OTHER);
     }

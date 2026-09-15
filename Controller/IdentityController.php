@@ -64,7 +64,7 @@ final class IdentityController extends CommonController
                 ? $sync->previewMauticWaitlist((int) $request->request->get('asset_id'), (string) $request->request->get('stage', 'Waitlist'), (int) $request->request->get('batch_size', 100))
                 : $sync->preview((int) $request->request->get('asset_id'), (string) $request->request->get('source'), (string) $request->request->get('consent_version'), (int) $request->request->get('batch_size', 100));
             $request->getSession()->set('meta_consent_sync_preview', $preview);
-            $this->addFlash('notice', 'Analysis completed. Review the counters before confirming synchronization.');
+            $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.analysis_completed_review_the_counters_before_confirming_synchronization'));
         } catch (\Throwable $exception) {
             $this->addFlash('error', $exception->getMessage());
         }
@@ -77,11 +77,11 @@ final class IdentityController extends CommonController
         $this->assertSyncAccess($request, $permissions, 'meta_consent_sync_start');
         $preview = $request->getSession()->get('meta_consent_sync_preview');
         if (!is_array($preview) || (int) ($preview['asset']['id'] ?? 0) !== (int) $request->request->get('asset_id')) {
-            $this->addFlash('error', 'A matching read-only analysis is required before synchronization.');
+            $this->addFlash('error', $this->translator->trans('mautic.meta.ui.a_matching_read_only_analysis_is_required_before_synchronization'));
             return $this->redirectToRoute('mautic_meta_identities');
         }
         if ('mautic_api_waitlist' === ($preview['sourceMode'] ?? null) && '1' !== (string) $request->request->get('trusted_waitlist_attestation')) {
-            $this->addFlash('error', 'The trusted API Waitlist consent attestation must be explicitly confirmed.');
+            $this->addFlash('error', $this->translator->trans('mautic.meta.ui.the_trusted_api_waitlist_consent_attestation_must_be_explicitly_confirmed'));
             return $this->redirectToRoute('mautic_meta_identities');
         }
         $user = $this->getUser();
@@ -96,7 +96,7 @@ final class IdentityController extends CommonController
             $user instanceof User ? $user : null,
         );
         $request->getSession()->remove('meta_consent_sync_preview');
-        $this->addFlash('notice', 'Synchronization queued as run #'.$run->getId().'.');
+        $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.sync_queued', ['%id%' => $run->getId()]));
 
         return $this->redirectToRoute('mautic_meta_identities');
     }
@@ -109,7 +109,7 @@ final class IdentityController extends CommonController
             throw $this->createNotFoundException();
         }
         $sync->cancel($run);
-        $this->addFlash('notice', 'Synchronization cancelled safely at its last checkpoint.');
+        $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.synchronization_cancelled_safely_at_its_last_checkpoint'));
 
         return $this->redirectToRoute('mautic_meta_identities');
     }
@@ -138,14 +138,14 @@ final class IdentityController extends CommonController
         $contactId = max(0, (int) $request->request->get('contact_id', 0));
         $contact = 0 === $contactId ? null : $leads->getEntity($contactId);
         if (0 !== $contactId && !$contact instanceof Lead) {
-            $this->addFlash('error', 'The selected Mautic contact does not exist.');
+            $this->addFlash('error', $this->translator->trans('mautic.meta.ui.the_selected_mautic_contact_does_not_exist'));
 
             return $this->redirectToRoute('mautic_meta_identities');
         }
         $manager->associate($identity, $contact);
         $status = ConsentStatus::tryFrom((string) $request->request->get('consent_status', 'unknown')) ?? ConsentStatus::Unknown;
         $manager->changeConsent($identity, $status, 'mautic_user');
-        $this->addFlash('notice', 'Meta identity updated.');
+        $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.meta_identity_updated'));
 
         return $this->redirectToRoute('mautic_meta_identities');
     }
@@ -158,7 +158,7 @@ final class IdentityController extends CommonController
         $identity = $identities->find($identityId);
         if (!$identity instanceof MetaContactIdentity) { throw $this->createNotFoundException(); }
         $manager->archive([$identity]);
-        $this->addFlash('notice', 'Meta identity removed. Consent audit was preserved.');
+        $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.meta_identity_removed_consent_audit_was_preserved'));
 
         return $this->redirectToRoute('mautic_meta_identities');
     }
@@ -171,10 +171,10 @@ final class IdentityController extends CommonController
         $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->request->all('ids')), static fn (int $id): bool => $id > 0)));
         $entities = array_values(array_filter($identities->findBy(['id' => $ids]), static fn ($identity): bool => $identity instanceof MetaContactIdentity && null === $identity->getArchivedAt()));
         if ([] === $entities) {
-            $this->addFlash('error', 'Select at least one Meta identity.');
+            $this->addFlash('error', $this->translator->trans('mautic.meta.ui.select_at_least_one_meta_identity'));
         } else {
             $manager->archive($entities);
-            $this->addFlash('notice', count($entities).' Meta identities removed. Consent audits were preserved.');
+            $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.identities_removed', ['%count%' => count($entities)]));
         }
 
         return $this->redirectToRoute('mautic_meta_identities');

@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace MauticPlugin\MauticMetaBundle\Tests\Unit\Application\WhatsApp;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ObjectRepository;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
+use MauticPlugin\MauticMetaBundle\Application\Safety\OutboundPolicy;
+use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\PhoneNormalizer;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSender;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
-use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
-use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
+use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
 use PHPUnit\Framework\TestCase;
 
 final class WhatsAppSenderTest extends TestCase
@@ -47,6 +49,64 @@ final class WhatsAppSenderTest extends TestCase
         $sender->sendText($asset, '5511999999999', 'Hello');
     }
 
+    public function testHumanRepliesInsideServiceWindowBypassCooldown(): void
+    {
+        $asset = $this->asset();
+        $inbound = (new MetaMessage())
+            ->setAsset($asset)
+            ->setChannel('whatsapp')
+            ->setDirection('inbound')
+            ->setRecipient('5511999999999');
+        $messages = $this->createMock(ObjectRepository::class);
+        $messages->expects(self::exactly(2))->method('findOneBy')->willReturn($inbound);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::exactly(2))->method('getRepository')->with(MetaMessage::class)->willReturn($messages);
+        $identities = $this->createMock(IdentityManager::class);
+        $identities->expects(self::exactly(2))->method('assertCanSend')->with($asset, '5511999999999', null, true);
+        $database = $this->createMock(\Doctrine\DBAL\Connection::class);
+        $database->expects(self::never())->method('fetchOne');
+        $graph = $this->createMock(MetaGraphClientInterface::class);
+        $graph->expects(self::exactly(2))->method('post')->willReturnOnConsecutiveCalls(
+            ['messages' => [['id' => 'wamid.first']]],
+            ['messages' => [['id' => 'wamid.second']]],
+        );
+        $sender = new WhatsAppSender($graph, $entityManager, new PhoneNormalizer(), $identities, new OutboundPolicy($database));
+
+        self::assertSame('wamid.first', $sender->sendText($asset, '5511999999999', 'Primeira', human: true)->messageId);
+        self::assertSame('wamid.second', $sender->sendText($asset, '5511999999999', 'Segunda', human: true)->messageId);
+    }
+
+    public function testGuardedInboxAiUsesCanonicalWaIdInsideServiceWindow(): void
+    {
+        $asset = $this->asset();
+        $canonicalWaId = '553184326486';
+        $inbound = (new MetaMessage())
+            ->setAsset($asset)
+            ->setChannel('whatsapp')
+            ->setDirection('inbound')
+            ->setRecipient($canonicalWaId);
+        $messages = $this->createMock(ObjectRepository::class);
+        $messages->expects(self::once())->method('findOneBy')->willReturn($inbound);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('getRepository')->with(MetaMessage::class)->willReturn($messages);
+        $identities = $this->createMock(IdentityManager::class);
+        $identities->expects(self::once())->method('assertCanSend')->with($asset, $canonicalWaId, null, true);
+        $database = $this->createMock(\Doctrine\DBAL\Connection::class);
+        $database->expects(self::never())->method('fetchOne');
+        $graph = $this->createMock(MetaGraphClientInterface::class);
+        $graph->expects(self::once())->method('post')->with(
+            self::anything(),
+            'phone-123/messages',
+            self::callback(static fn (array $payload): bool => $canonicalWaId === $payload['to']),
+        )->willReturn(['messages' => [['id' => 'wamid.ai']]]);
+        $sender = new WhatsAppSender($graph, $entityManager, new PhoneNormalizer(), $identities, new OutboundPolicy($database));
+
+        $result = $sender->sendText($asset, $canonicalWaId, 'Resposta da IA', alreadyAutomationGuarded: true);
+
+        self::assertSame('wamid.ai', $result->messageId);
+        self::assertSame($canonicalWaId, $result->recipient);
+    }
+
     public function testRejectsInvalidMediaType(): void
     {
         $sender = $this->sender();
@@ -61,7 +121,7 @@ final class WhatsAppSenderTest extends TestCase
             self::isInstanceOf(MetaConnection::class),
             'phone-123/messages',
             self::callback(static fn (array $payload): bool => 'image' === $payload['type'] && 'https://cdn.example.test/image.jpg' === $payload['image']['link']),
-        )->willReturn(['messages' => [['id' => 'wamid.media']] ]);
+        )->willReturn(['messages' => [['id' => 'wamid.media']]]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $identities = $this->createMock(IdentityManager::class);
         $identities->expects(self::once())->method('assertCanSend');
@@ -105,12 +165,29 @@ final class WhatsAppSenderTest extends TestCase
     {
         $graph = $this->createMock(MetaGraphClientInterface::class);
         $graph->expects(self::never())->method('post');
-        $integration = new class implements InboxIntegrationInterface {
-            public function ownsSupportInbox(): bool { return true; }
-            public function messagePersisted(MetaMessage $message): void {}
-            public function automationAllowed(MetaAsset $asset, string $recipient): bool { return false; }
-            public function runAutomationGuarded(MetaAsset $asset, string $recipient, callable $operation): mixed { throw new \DomainException('Automation paused'); }
-            public function outboundJobChanged(MetaOutboundJob $job): void {}
+        $integration = new class() implements InboxIntegrationInterface {
+            public function ownsSupportInbox(): bool
+            {
+                return true;
+            }
+
+            public function messagePersisted(MetaMessage $message): void
+            {
+            }
+
+            public function automationAllowed(MetaAsset $asset, string $recipient): bool
+            {
+                return false;
+            }
+
+            public function runAutomationGuarded(MetaAsset $asset, string $recipient, callable $operation): mixed
+            {
+                throw new \DomainException('Automation paused');
+            }
+
+            public function outboundJobChanged(MetaOutboundJob $job): void
+            {
+            }
         };
         $sender = new WhatsAppSender($graph, $this->createMock(EntityManagerInterface::class), new PhoneNormalizer(), $this->createMock(IdentityManager::class), inboxIntegration: $integration);
 
@@ -121,7 +198,7 @@ final class WhatsAppSenderTest extends TestCase
     private function asset(): MetaAsset
     {
         return (new MetaAsset())
-            ->setConnection((new MetaConnection())->setName('Primary'))
+            ->setConnection((new MetaConnection())->setName('Primary')->setStatus('active')->setIsPublished(true))
             ->setExternalId('phone-123')
             ->setName('Sales')
             ->setType(AssetType::WhatsAppPhoneNumber)

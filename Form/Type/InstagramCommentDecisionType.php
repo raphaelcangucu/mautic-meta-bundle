@@ -27,9 +27,9 @@ final class InstagramCommentDecisionType extends AbstractType
         }
 
         $builder
-            ->add('asset_id', ChoiceType::class, ['label' => 'Instagram account', 'choices' => $choices, 'constraints' => [new NotBlank()]])
-            ->add('media_id', TextType::class, ['label' => 'Exact Instagram media ID', 'constraints' => [new NotBlank(), new Regex('/^[0-9]+$/')]])
-            ->add('keyword', TextType::class, ['label' => 'Whole word (accents and case ignored)', 'data' => $options['data']['keyword'] ?? 'relatorio', 'constraints' => [new NotBlank(), new Regex('/^[\p{L}\p{N}_]+$/u')]]);
+            ->add('asset_id', ChoiceType::class, ['label' => 'mautic.meta.ui.instagram_account_a38dde', 'choices' => $choices, 'constraints' => [new NotBlank()]])
+            ->add('media_id', TextType::class, ['label' => 'mautic.meta.ui.exact_instagram_media_id_0b156c', 'constraints' => [new NotBlank(), new Regex('/^[0-9]+$/')]])
+            ->add('keyword', TextType::class, ['label' => 'mautic.meta.ui.whole_word_accents_and_case_ignored_09af1b', 'data' => $options['data']['keyword'] ?? 'relatorio', 'constraints' => [new NotBlank(), new Regex('/^[\p{L}\p{N}_]+$/u')]]);
     }
 
     public function getBlockPrefix(): string

@@ -34,12 +34,95 @@ final class MetaGraphClient implements MetaGraphClientInterface
         return $this->request($connection, 'DELETE', $path, ['query' => $query]);
     }
 
+    public function downloadWhatsAppMedia(MetaConnection $connection, string $mediaId, int $maximumBytes = 26214400): array
+    {
+        if (1 !== preg_match('/^[0-9]{5,40}$/', $mediaId) || $maximumBytes < 1) {
+            throw new \InvalidArgumentException('A valid WhatsApp media id and size limit are required.');
+        }
+
+        $metadata = $this->get($connection, $mediaId);
+        $url = trim((string) ($metadata['url'] ?? ''));
+        $parts = parse_url($url);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        if ('https' !== ($parts['scheme'] ?? null)
+            || (0 !== strcasecmp($host, 'lookaside.fbsbx.com') && !str_ends_with($host, '.fbcdn.net'))
+            || isset($parts['user'])
+            || isset($parts['pass'])) {
+            throw new \RuntimeException('Meta returned an invalid media download location.');
+        }
+
+        $declaredSize = max(0, (int) ($metadata['file_size'] ?? 0));
+        if ($declaredSize > $maximumBytes) {
+            throw new \RuntimeException('WhatsApp media exceeds the allowed preview size.');
+        }
+
+        $credentials = $this->credentials->for($connection);
+        $this->rateLimiter->reserve($connection);
+        $response = $this->httpClient->request('GET', $url, [
+            'auth_bearer' => $credentials->accessToken,
+            'headers' => ['Accept' => '*/*'],
+            'timeout' => 30,
+        ]);
+        $status = $response->getStatusCode();
+        if ($status >= 400) {
+            throw new \RuntimeException('Meta could not provide this WhatsApp media.');
+        }
+        $headers = $response->getHeaders(false);
+        $contentLength = max(0, (int) ($headers['content-length'][0] ?? 0));
+        if ($contentLength > $maximumBytes) {
+            throw new \RuntimeException('WhatsApp media exceeds the allowed preview size.');
+        }
+        $contents = $response->getContent(false);
+        if ('' === $contents || strlen($contents) > $maximumBytes) {
+            throw new \RuntimeException('WhatsApp media is empty or exceeds the allowed preview size.');
+        }
+        $mimeType = strtolower(trim((string) ($headers['content-type'][0] ?? $metadata['mime_type'] ?? 'application/octet-stream')));
+        $mimeType = trim(explode(';', $mimeType, 2)[0]);
+
+        return ['contents' => $contents, 'mimeType' => $mimeType ?: 'application/octet-stream', 'fileSize' => strlen($contents)];
+    }
+
+    public function upload(MetaConnection $connection, string $fileName, string $contents, string $mimeType): string
+    {
+        if ('' === $contents || !in_array($mimeType, ['image/jpeg', 'image/png'], true)) {
+            throw new \InvalidArgumentException('A non-empty JPEG or PNG file is required.');
+        }
+
+        $credentials = $this->credentials->for($connection);
+        $session = $this->request($connection, 'POST', $credentials->appId.'/uploads', ['query' => [
+            'file_name'   => basename($fileName),
+            'file_length' => strlen($contents),
+            'file_type'   => $mimeType,
+        ], 'headers' => ['Authorization' => 'OAuth '.$credentials->accessToken]]);
+        $uploadId = trim((string) ($session['id'] ?? ''));
+        if ('' === $uploadId || !str_starts_with($uploadId, 'upload:')) {
+            throw new \RuntimeException('Meta did not return a valid upload session.');
+        }
+
+        $result = $this->request($connection, 'POST', $uploadId, [
+            'body'    => $contents,
+            'headers' => [
+                'Authorization' => 'OAuth '.$credentials->accessToken,
+                'Content-Type'  => $mimeType,
+                'file_offset'   => '0',
+            ],
+        ]);
+        $handle = trim((string) ($result['h'] ?? ''));
+        if ('' === $handle) {
+            throw new \RuntimeException('Meta did not return a profile-picture handle.');
+        }
+
+        return $handle;
+    }
+
     private function request(MetaConnection $connection, string $method, string $path, array $options): array
     {
         $credentials = $this->credentials->for($connection);
         $this->rateLimiter->reserve($connection);
         $url = sprintf('https://graph.facebook.com/%s/%s', $credentials->graphVersion, ltrim($path, '/'));
-        $options['auth_bearer'] = $credentials->accessToken;
+        if (!isset($options['headers']['Authorization'])) {
+            $options['auth_bearer'] = $credentials->accessToken;
+        }
         $options['headers']['Accept'] = 'application/json';
         $options['timeout'] = 30;
         $response = $this->httpClient->request($method, $url, $options);

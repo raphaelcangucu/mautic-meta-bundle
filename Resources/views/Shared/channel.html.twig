@@ -1,4 +1,4 @@
 {% set key = channel|default('') %}
 {% set channels = {whatsapp:['WhatsApp','whatsapp','ri-whatsapp-line'],whatsapp_phone_number:['WhatsApp','whatsapp','ri-whatsapp-line'],whatsapp_business_account:['WhatsApp Business','whatsapp','ri-whatsapp-line'],instagram:['Instagram','instagram','ri-instagram-line'],instagram_account:['Instagram','instagram','ri-instagram-line'],facebook:['Facebook','facebook','ri-facebook-circle-line'],facebook_page:['Facebook','facebook','ri-facebook-circle-line'],page:['Facebook','facebook','ri-facebook-circle-line']} %}
-{% set info = channels[key]|default([key ?: 'Não informado','neutral','ri-global-line']) %}
+{% set info = channels[key]|default([key ?: ('mautic.meta.ui.not_provided_0cd27e'|trans),'neutral','ri-global-line']) %}
 <span class="meta-chip meta-channel meta-channel-{{ info[1] }}"><i class="{{ info[2] }}" aria-hidden="true"></i>{{ info[0] }}</span>

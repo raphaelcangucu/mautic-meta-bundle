@@ -41,6 +41,39 @@ final class OutboundPolicyTest extends TestCase
         self::assertTrue(true);
     }
 
+    public function testHumanTextReplyInsideCustomerServiceWindowBypassesOutboundLimits(): void
+    {
+        $db = $this->createMock(Connection::class);
+        $db->expects(self::never())->method('fetchOne');
+
+        (new OutboundPolicy($db))->assertAllowed(
+            $this->asset(AssetType::WhatsAppPhoneNumber),
+            'whatsapp',
+            '5511999999999',
+            'text',
+            null,
+            true,
+        );
+        self::assertTrue(true);
+    }
+
+    public function testCustomerServiceFlagDoesNotBypassTemplateLimits(): void
+    {
+        $db = $this->createMock(Connection::class);
+        $db->expects(self::once())->method('fetchOne')->willReturn(250);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('daily limit');
+        (new OutboundPolicy($db))->assertAllowed(
+            $this->asset(AssetType::WhatsAppPhoneNumber),
+            'whatsapp',
+            '5511999999999',
+            'template',
+            null,
+            true,
+        );
+    }
+
     private function asset(AssetType $type): MetaAsset
     {
         return (new MetaAsset(7))->setType($type)->setSettings([]);

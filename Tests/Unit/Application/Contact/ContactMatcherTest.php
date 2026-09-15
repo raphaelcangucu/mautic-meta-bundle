@@ -56,6 +56,6 @@ final class ContactMatcherTest extends TestCase
 
     private function asset(AssetType $type): MetaAsset
     {
-        return (new MetaAsset())->setType($type)->setSettings([]);
+        return (new MetaAsset())->setConnection(new \MauticPlugin\MauticMetaBundle\Entity\MetaConnection())->setType($type)->setSettings([]);
     }
 }

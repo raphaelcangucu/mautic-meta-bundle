@@ -9,12 +9,14 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaConversation;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConversationRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
+use MauticPlugin\MauticMetaBundle\Application\WhatsApp\PhoneNormalizer;
 
 final class ConversationManager
 {
     public function __construct(
         private MetaConversationRepository $repository,
         private EntityManagerInterface $entityManager,
+        private PhoneNormalizer $phones,
         private ?InboxIntegrationInterface $inboxIntegration = null,
     ) {
     }
@@ -30,6 +32,34 @@ final class ConversationManager
             'channel'   => $message->getChannel(),
             'recipient' => $conversationRecipient,
         ]);
+        if (!$conversation instanceof MetaConversation && 'whatsapp' === $message->getChannel()) {
+            $region = (string) ($message->getAsset()->getSettings()['default_region'] ?? 'BR');
+            foreach ($this->phones->equivalentRecipients($conversationRecipient, $region) as $equivalentRecipient) {
+                if ($equivalentRecipient === $conversationRecipient) {
+                    continue;
+                }
+                $candidate = $this->repository->findOneBy([
+                    'asset'     => $message->getAsset(),
+                    'channel'   => $message->getChannel(),
+                    'recipient' => $equivalentRecipient,
+                ]);
+                if (!$candidate instanceof MetaConversation) {
+                    continue;
+                }
+                $candidateContact = $candidate->getContact();
+                $messageContact = $message->getContact();
+                if (
+                    null !== $candidateContact
+                    && null !== $messageContact
+                    && $candidateContact !== $messageContact
+                    && (null === $candidateContact->getId() || null === $messageContact->getId() || $candidateContact->getId() !== $messageContact->getId())
+                ) {
+                    continue;
+                }
+                $conversation = $candidate;
+                break;
+            }
+        }
         if (!$conversation instanceof MetaConversation) {
             $conversation = (new MetaConversation())
                 ->setAsset($message->getAsset())
@@ -40,6 +70,13 @@ final class ConversationManager
 
         if (null !== $message->getContact()) {
             $conversation->setContact($message->getContact());
+        }
+        if ('whatsapp' === $message->getChannel()) {
+            $region = (string) ($message->getAsset()->getSettings()['default_region'] ?? 'BR');
+            $canonicalRecipient = $this->phones->equivalentRecipients($conversationRecipient, $region)[0] ?? $conversationRecipient;
+            if ($conversation->getRecipient() !== $canonicalRecipient) {
+                $conversation->setRecipient($canonicalRecipient);
+            }
         }
 
         $now = new \DateTimeImmutable();

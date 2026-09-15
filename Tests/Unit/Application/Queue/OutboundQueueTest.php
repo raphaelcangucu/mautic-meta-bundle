@@ -7,6 +7,7 @@ namespace MauticPlugin\MauticMetaBundle\Tests\Unit\Application\Queue;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Result;
 use Doctrine\ORM\EntityManagerInterface;
+use MauticPlugin\MauticMetaBundle\Application\Queue\ImmediateOutboundDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundOperationExecutor;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundQueue;
 use MauticPlugin\MauticMetaBundle\Application\Support\NoopInboxIntegration;
@@ -20,7 +21,7 @@ final class OutboundQueueTest extends TestCase
 {
     public function testCompletesDueJobAndStoresMessageLogId(): void
     {
-        $job = (new MetaOutboundJob())->setOperation('whatsapp_text');
+        $job = (new MetaOutboundJob(1))->setOperation('whatsapp_text');
         [$queue, $executor] = $this->queue([$job]);
         $executor->expects(self::once())->method('execute')->with($job)->willReturn(new WhatsAppSendResult(91, 'wamid.test', 'accepted', '5511999999999', ['wamid' => 'wamid.test']));
 
@@ -34,7 +35,7 @@ final class OutboundQueueTest extends TestCase
 
     public function testHoldsUnknownTransportFailureForReview(): void
     {
-        $job = (new MetaOutboundJob())->setOperation('whatsapp_text')->setMaxAttempts(3);
+        $job = (new MetaOutboundJob(2))->setOperation('whatsapp_text')->setMaxAttempts(3);
         [$queue, $executor] = $this->queue([$job]);
         $executor->method('execute')->willThrowException(new \RuntimeException('Meta temporarily unavailable'));
 
@@ -47,7 +48,7 @@ final class OutboundQueueTest extends TestCase
 
     public function testWhatsAppJobCannotCompleteWithoutWamid(): void
     {
-        $job = (new MetaOutboundJob())->setOperation('whatsapp_template')->setMaxAttempts(1);
+        $job = (new MetaOutboundJob(3))->setOperation('whatsapp_template')->setMaxAttempts(1);
         [$queue, $executor] = $this->queue([$job]);
         $executor->method('execute')->willReturn(new WhatsAppSendResult(92, '', 'accepted', '5511999999999'));
 
@@ -61,7 +62,7 @@ final class OutboundQueueTest extends TestCase
 
     public function testDoesNotRetryPermanentValidationFailure(): void
     {
-        $job = (new MetaOutboundJob())->setOperation('whatsapp_text')->setMaxAttempts(5);
+        $job = (new MetaOutboundJob(4))->setOperation('whatsapp_text')->setMaxAttempts(5);
         [$queue, $executor] = $this->queue([$job]);
         $executor->method('execute')->willThrowException(new \DomainException('Contact opted out'));
 
@@ -98,6 +99,40 @@ final class OutboundQueueTest extends TestCase
         self::assertSame($existing, $queue->enqueue(new MetaAsset(4), 'instagram_private_reply', ['recipient' => 'comment-1', 'text' => 'Report'], null, 1, 'igc:example'));
     }
 
+    public function testHumanWhatsAppTextIsDispatchedImmediately(): void
+    {
+        $job = (new MetaOutboundJob(5))
+            ->setOperation('whatsapp_text')
+            ->setPayload(['_origin' => 'inbox_human']);
+        [$queue, $executor] = $this->queue([]);
+        $executor->expects(self::once())->method('execute')->with($job)->willReturn(
+            new WhatsAppSendResult(95, 'wamid.immediate', 'accepted', '5511999999999', ['wamid' => 'wamid.immediate']),
+        );
+
+        self::assertTrue((new ImmediateOutboundDispatcher($queue))->dispatch($job));
+        self::assertSame('completed', $job->getStatus());
+        self::assertSame(95, $job->getMessageLogId());
+        self::assertSame(1, $job->getAttempts());
+    }
+
+    public function testImmediateDispatcherLeavesTemplatesAndAutomationOnQueue(): void
+    {
+        $template = (new MetaOutboundJob(6))
+            ->setOperation('whatsapp_template')
+            ->setPayload(['_origin' => 'inbox_human']);
+        $automation = (new MetaOutboundJob(7))
+            ->setOperation('whatsapp_text')
+            ->setPayload(['_origin' => 'inbox_ai']);
+        [$queue, $executor] = $this->queue([]);
+        $executor->expects(self::never())->method('execute');
+        $dispatcher = new ImmediateOutboundDispatcher($queue);
+
+        self::assertFalse($dispatcher->dispatch($template));
+        self::assertFalse($dispatcher->dispatch($automation));
+        self::assertSame('pending', $template->getStatus());
+        self::assertSame('pending', $automation->getStatus());
+    }
+
     /** @param list<MetaOutboundJob> $dueJobs
      *  @param list<MetaOutboundJob> $stalledJobs
      *  @return array{OutboundQueue, OutboundOperationExecutor&\PHPUnit\Framework\MockObject\MockObject}
@@ -107,6 +142,14 @@ final class OutboundQueueTest extends TestCase
         $repository = $this->createMock(MetaOutboundJobRepository::class);
         $repository->method('findStalled')->willReturn($stalledJobs);
         $repository->method('findDue')->willReturn($dueJobs);
+        $repository->method('claim')->willReturnCallback(static function (MetaOutboundJob $job, \DateTimeImmutable $now): bool {
+            if (!in_array($job->getStatus(), ['pending', 'retry'], true)) {
+                return false;
+            }
+            $job->setStatus('processing')->setLockedAt($now)->setAttempts($job->getAttempts() + 1);
+
+            return true;
+        });
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $executor = $this->createMock(OutboundOperationExecutor::class);
         $connection = $this->createMock(Connection::class);

@@ -15,7 +15,8 @@ final class WebhookReplay
         private FacebookWebhookProcessor $facebook,
         private WebhookIngestor $ingestor,
         private EntityManagerInterface $entityManager,
-    ) {}
+    ) {
+    }
 
     /**
      * @return array<string, mixed>
@@ -27,7 +28,7 @@ final class WebhookReplay
         }
         try {
             $result = match ($event->getObjectType()) {
-                'whatsapp_business_account' => $this->whatsApp->process($event->getPayload()),
+                'whatsapp_business_account' => $this->whatsApp->process($event->getPayload(), $event->getConnection()),
                 'page' => $this->facebook->process($event->getPayload(), $event->getConnection()),
                 'instagram' => $this->instagram->process($event->getPayload(), $event->getConnection()),
                 default => ['ignored' => true],

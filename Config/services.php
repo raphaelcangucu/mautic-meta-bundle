@@ -20,6 +20,7 @@ return function (ContainerConfigurator $configurator): void {
         ->public();
 
     $excludes = MauticCoreExtension::DEFAULT_EXCLUDES;
+    $excludes[] = 'Mcp';
     $excludes[] = 'Application/Connection/ConnectionCredentials.php';
     $excludes[] = 'Application/WhatsApp/WhatsAppSendResult.php';
     $excludes[] = 'Infrastructure/MetaGraphApiException.php';

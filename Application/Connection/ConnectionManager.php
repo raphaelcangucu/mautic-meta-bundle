@@ -37,7 +37,7 @@ final class ConnectionManager
         if (1 !== preg_match('/^v\d+\.\d+$/', $graphVersion)) {
             throw new \InvalidArgumentException('Invalid Meta Graph API version.');
         }
-        if ($this->repository->findOneBy(['appId' => trim($appId)]) instanceof MetaConnection) {
+        if ($this->repository->findOneBy(['appId' => trim($appId), 'businessId' => '']) instanceof MetaConnection) {
             throw new \InvalidArgumentException('A Meta connection with this App ID already exists. Edit the existing connection instead.');
         }
 
@@ -58,6 +58,9 @@ final class ConnectionManager
 
     public function update(MetaConnection $connection, array $data): MetaConnection
     {
+        if ($connection->isCustomer()) {
+            throw new \DomainException('Use Tech Provider to reauthorize a customer connection.');
+        }
         $name = trim((string) ($data['name'] ?? ''));
         $appId = trim((string) ($data['app_id'] ?? ''));
         $graphVersion = trim((string) ($data['graph_version'] ?? ''));
@@ -68,7 +71,7 @@ final class ConnectionManager
             throw new \InvalidArgumentException('Invalid Meta Graph API version.');
         }
 
-        $duplicate = $this->repository->findOneBy(['appId' => $appId]);
+        $duplicate = $this->repository->findOneBy(['appId' => $appId, 'businessId' => '']);
         if ($duplicate instanceof MetaConnection && $duplicate->getId() !== $connection->getId()) {
             throw new \InvalidArgumentException('A Meta connection with this App ID already exists.');
         }
@@ -167,6 +170,11 @@ final class ConnectionManager
 
     public function remove(MetaConnection $connection): void
     {
+        foreach ($this->repository->findAll() as $candidate) {
+            if ((int) ($candidate->getSettings()['provider_connection_id'] ?? 0) === $connection->getId()) {
+                throw new \DomainException('Desconecte os clientes antes de remover o aplicativo provedor.');
+            }
+        }
         $this->entityManager->remove($connection);
         $this->entityManager->flush();
     }

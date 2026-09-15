@@ -60,6 +60,18 @@ final class OutboundQueue
     }
 
     /**
+     * Executes an already-persisted job in the current request.
+     *
+     * Atomic claiming prevents the minute worker and an immediate dispatcher from
+     * sending the same job. A false result means another process already claimed it
+     * or the job had reached a terminal state.
+     */
+    public function dispatchNow(MetaOutboundJob $job): bool
+    {
+        return null !== $this->processJob($job, new \DateTimeImmutable());
+    }
+
+    /**
      * @return array{processed:int,succeeded:int,retried:int,failed:int,recovered:int}
      */
     private function processDue(int $limit): array
@@ -68,81 +80,100 @@ final class OutboundQueue
         $recovered = $this->recoverStalled($now->modify('-15 minutes'));
         $processed = $succeeded = $retried = $failed = 0;
         foreach ($this->jobs->findDue($limit, $now) as $job) {
-            ++$processed;
-            $job->setStatus('processing')->setLockedAt($now)->setAttempts($job->getAttempts() + 1);
-            $this->entityManager->persist($job);
-            $this->entityManager->flush();
-            $this->notifyInbox($job);
-            try {
-                $result = $this->executor->execute($job);
-                $messageLogId = $result instanceof \MauticPlugin\MauticMetaBundle\Entity\MetaMessage ? (int) $result->getId() : $result->logId;
-                $inboxConversationId = (int) ($job->getPayload()['_inbox_conversation_id'] ?? 0);
-                if (0 === $inboxConversationId && 'instagram_private_reply' === $job->getOperation()) {
-                    $commentConversation = $this->entityManager->getRepository(MetaConversation::class)->findOneBy([
-                        'asset' => $job->getAsset(),
-                        'channel' => 'instagram',
-                        'recipient' => 'comment:'.(string) ($job->getPayload()['recipient'] ?? ''),
-                    ]);
-                    $inboxConversationId = $commentConversation instanceof MetaConversation ? (int) $commentConversation->getId() : 0;
-                }
-                if ($inboxConversationId > 0) {
-                    $inboxConversation = $this->entityManager->find(MetaConversation::class, $inboxConversationId);
-                    $messageLog = $result instanceof MetaMessage ? $result : $this->entityManager->find(MetaMessage::class, $messageLogId);
-                    if ($inboxConversation instanceof MetaConversation && $messageLog instanceof MetaMessage && $messageLog->getAsset()->getId() === $inboxConversation->getAsset()->getId()) {
-                        $messageLog->setConversation($inboxConversation);
-                        $inboxConversation->setLastMessageAt(new \DateTimeImmutable());
-                        $this->entityManager->persist($messageLog);
-                        $this->entityManager->persist($inboxConversation);
-                    }
-                }
-                if ('whatsapp_' === substr($job->getOperation(), 0, 9)) {
-                    if (!$result instanceof \MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSendResult || '' === trim($result->messageId)) {
-                        throw new \RuntimeException('WhatsApp delivery cannot complete without response.messages[0].id.');
-                    }
-                    $persisted = $this->connection->fetchAssociative('SELECT external_id,status FROM meta_messages WHERE id=:id', ['id' => $result->logId]);
-                    if (!is_array($persisted) || trim((string) ($persisted['external_id'] ?? '')) !== $result->messageId) {
-                        $this->connection->update('meta_messages', [
-                            'external_id' => $result->messageId,
-                            'status' => $result->status,
-                            'response' => json_encode($result->response, JSON_THROW_ON_ERROR),
-                            'date_modified' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-                        ], ['id' => $result->logId]);
-                    }
-                }
-                $job->setStatus('completed')->setCompletedAt(new \DateTimeImmutable())->setLockedAt(null)->setLastError(null)->setMessageLogId($messageLogId);
-                ++$succeeded;
-            } catch (\Throwable $exception) {
-                $error = $exception instanceof MetaGraphApiException ? $exception->details() : ['message' => $exception->getMessage()];
-                $job->setLastError(json_encode($error, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))->setLockedAt(null);
-                $permanentGraphFailure = $exception instanceof MetaGraphApiException
-                    && !$exception->isRetryable();
-                if ($exception instanceof \DomainException && str_contains($exception->getMessage(), 'Automation paused')) {
-                    $job->setStatus('blocked');
-                    ++$failed;
-                } elseif (!$exception instanceof MetaGraphApiException && !$exception instanceof \InvalidArgumentException && !$exception instanceof \DomainException) {
-                    // A transport interruption can happen after Meta accepted the request. Never retry blindly.
-                    $job->setStatus('uncertain');
-                    ++$failed;
-                } elseif (
-                    $exception instanceof \InvalidArgumentException
-                    || $exception instanceof \DomainException
-                    || $permanentGraphFailure
-                    || $job->getAttempts() >= $job->getMaxAttempts()
-                ) {
-                    $job->setStatus('failed');
-                    ++$failed;
-                } else {
-                    $delay = min(3600, 2 ** max(0, $job->getAttempts() - 1) * 30);
-                    $job->setStatus('retry')->setAvailableAt((new \DateTimeImmutable())->modify(sprintf('+%d seconds', $delay)));
-                    ++$retried;
-                }
+            $outcome = $this->processJob($job, $now);
+            if (null === $outcome) {
+                continue;
             }
-            $this->entityManager->persist($job);
-            $this->entityManager->flush();
-            $this->notifyInbox($job);
+
+            ++$processed;
+            if ('succeeded' === $outcome) {
+                ++$succeeded;
+            } elseif ('retried' === $outcome) {
+                ++$retried;
+            } else {
+                ++$failed;
+            }
         }
 
         return compact('processed', 'succeeded', 'retried', 'failed', 'recovered');
+    }
+
+    /** @return 'succeeded'|'retried'|'failed'|null */
+    private function processJob(MetaOutboundJob $job, \DateTimeImmutable $now): ?string
+    {
+        if (!$this->jobs->claim($job, $now)) {
+            return null;
+        }
+
+        $this->notifyInbox($job);
+        $outcome = 'succeeded';
+        try {
+            $result = $this->executor->execute($job);
+            $messageLogId = $result instanceof MetaMessage ? (int) $result->getId() : $result->logId;
+            $inboxConversationId = (int) ($job->getPayload()['_inbox_conversation_id'] ?? 0);
+            if (0 === $inboxConversationId && 'instagram_private_reply' === $job->getOperation()) {
+                $commentConversation = $this->entityManager->getRepository(MetaConversation::class)->findOneBy([
+                    'asset'     => $job->getAsset(),
+                    'channel'   => 'instagram',
+                    'recipient' => 'comment:'.(string) ($job->getPayload()['recipient'] ?? ''),
+                ]);
+                $inboxConversationId = $commentConversation instanceof MetaConversation ? (int) $commentConversation->getId() : 0;
+            }
+            if ($inboxConversationId > 0) {
+                $inboxConversation = $this->entityManager->find(MetaConversation::class, $inboxConversationId);
+                $messageLog = $result instanceof MetaMessage ? $result : $this->entityManager->find(MetaMessage::class, $messageLogId);
+                if ($inboxConversation instanceof MetaConversation && $messageLog instanceof MetaMessage && $messageLog->getAsset()->getId() === $inboxConversation->getAsset()->getId()) {
+                    $messageLog->setConversation($inboxConversation);
+                    $inboxConversation->setLastMessageAt(new \DateTimeImmutable());
+                    $this->entityManager->persist($messageLog);
+                    $this->entityManager->persist($inboxConversation);
+                }
+            }
+            if ('whatsapp_' === substr($job->getOperation(), 0, 9)) {
+                if (!$result instanceof \MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSendResult || '' === trim($result->messageId)) {
+                    throw new \RuntimeException('WhatsApp delivery cannot complete without response.messages[0].id.');
+                }
+                $persisted = $this->connection->fetchAssociative('SELECT external_id,status FROM meta_messages WHERE id=:id', ['id' => $result->logId]);
+                if (!is_array($persisted) || trim((string) ($persisted['external_id'] ?? '')) !== $result->messageId) {
+                    $this->connection->update('meta_messages', [
+                        'external_id'    => $result->messageId,
+                        'status'         => $result->status,
+                        'response'       => json_encode($result->response, JSON_THROW_ON_ERROR),
+                        'date_modified'  => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                    ], ['id' => $result->logId]);
+                }
+            }
+            $job->setStatus('completed')->setCompletedAt(new \DateTimeImmutable())->setLockedAt(null)->setLastError(null)->setMessageLogId($messageLogId);
+        } catch (\Throwable $exception) {
+            $error = $exception instanceof MetaGraphApiException ? $exception->details() : ['message' => $exception->getMessage()];
+            $job->setLastError(json_encode($error, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))->setLockedAt(null);
+            $permanentGraphFailure = $exception instanceof MetaGraphApiException && !$exception->isRetryable();
+            if ($exception instanceof \DomainException && str_contains($exception->getMessage(), 'Automation paused')) {
+                $job->setStatus('blocked');
+                $outcome = 'failed';
+            } elseif (!$exception instanceof MetaGraphApiException && !$exception instanceof \InvalidArgumentException && !$exception instanceof \DomainException) {
+                // A transport interruption can happen after Meta accepted the request. Never retry blindly.
+                $job->setStatus('uncertain');
+                $outcome = 'failed';
+            } elseif (
+                $exception instanceof \InvalidArgumentException
+                || $exception instanceof \DomainException
+                || $permanentGraphFailure
+                || $job->getAttempts() >= $job->getMaxAttempts()
+            ) {
+                $job->setStatus('failed');
+                $outcome = 'failed';
+            } else {
+                $delay = min(3600, 2 ** max(0, $job->getAttempts() - 1) * 30);
+                $job->setStatus('retry')->setAvailableAt((new \DateTimeImmutable())->modify(sprintf('+%d seconds', $delay)));
+                $outcome = 'retried';
+            }
+        }
+        $this->entityManager->persist($job);
+        $this->entityManager->flush();
+        $this->notifyInbox($job);
+
+        return $outcome;
     }
 
     private function recoverStalled(\DateTimeInterface $before): int
