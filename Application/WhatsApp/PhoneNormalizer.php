@@ -25,6 +25,15 @@ final class PhoneNormalizer
         return ltrim($util->format($parsed, PhoneNumberFormat::E164), '+');
     }
 
+    public function normalizeMetaSender(string $phone, string $defaultRegion): string
+    {
+        try {
+            return $this->normalizeImported($phone, $defaultRegion);
+        } catch (\InvalidArgumentException) {
+            return trim($phone);
+        }
+    }
+
     public function normalizeImported(string $phone, string $defaultRegion, bool $convertLegacyBrazilianMobile = true): string
     {
         try {

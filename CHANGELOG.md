@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.2
+
+- Canonicalize inbound Brazilian WhatsApp identifiers before contact and identity matching when Meta omits the mobile ninth digit.
+- Preserve the existing identity, opt-in state and contact timeline instead of creating an unlinked duplicate.
+
 ## 0.12.1
 
 - Redesign Meta administration with Mautic colors, shared navigation and channel/status/type badges.

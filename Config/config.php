@@ -15,7 +15,7 @@ use MauticPlugin\MauticMetaBundle\Controller\WebhookController;
 return [
     'name'        => 'Mautic Meta Integration',
     'description' => 'Multi-account WhatsApp and Instagram integration using the official Meta Graph API.',
-    'version'     => '0.12.1',
+    'version'     => '0.12.2',
     'author'      => 'Raphael Cangucu',
     'routes'      => [
         'main' => [

@@ -14,6 +14,16 @@ final class PhoneNormalizerTest extends TestCase
         self::assertSame('5531998417391', (new PhoneNormalizer())->normalizeImported('31 9841-7391', 'BR'));
     }
 
+    public function testMetaSenderUsesCanonicalBrazilianMobileIdentity(): void
+    {
+        self::assertSame('5531984326486', (new PhoneNormalizer())->normalizeMetaSender('553184326486', 'BR'));
+    }
+
+    public function testInvalidMetaSenderFallsBackToTrimmedOriginal(): void
+    {
+        self::assertSame('not-a-phone', (new PhoneNormalizer())->normalizeMetaSender('  not-a-phone  ', 'BR'));
+    }
+
     public function testLegacyConversionCanBeDisabled(): void
     {
         $this->expectException(\InvalidArgumentException::class);

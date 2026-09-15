@@ -11,6 +11,7 @@ use MauticPlugin\MauticMetaBundle\Application\Contact\ContactMatcher;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
 use MauticPlugin\MauticMetaBundle\Application\Conversation\ConversationManager;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\ConsentKeywordMatcher;
+use MauticPlugin\MauticMetaBundle\Application\WhatsApp\PhoneNormalizer;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository;
@@ -28,6 +29,7 @@ final class WhatsAppWebhookProcessor
         private IdentityManager $identities,
         private ContactMatcher $contactMatcher,
         private ConsentKeywordMatcher $keywords,
+        private PhoneNormalizer $phones,
         private CampaignMessageDispatcher $campaigns,
         private WebhookAdapterDispatcher $adapters,
         private ConversationManager $conversations,
@@ -51,7 +53,10 @@ final class WhatsAppWebhookProcessor
                 continue;
             }
             $type = (string) ($message['type'] ?? 'unknown');
-            $sender = (string) ($message['from'] ?? '');
+            $sender = $this->phones->normalizeMetaSender(
+                (string) ($message['from'] ?? ''),
+                (string) ($asset->getSettings()['default_region'] ?? 'BR'),
+            );
             $profileName = is_array($item['contact'] ?? null) ? (string) ($item['contact']['profile']['name'] ?? '') : '';
             $identity = $this->identities->registerInteraction($asset, $sender, $profileName ?: null, $this->contactMatcher->match($asset, $sender));
             if ('text' === $type) {
