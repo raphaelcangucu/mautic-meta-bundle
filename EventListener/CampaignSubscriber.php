@@ -47,7 +47,7 @@ final class CampaignSubscriber implements EventSubscriberInterface
 
     public static function getSubscribedEvents(): array
     {
-        return [CampaignEvents::CAMPAIGN_ON_BUILD => ['onBuild', 0], MetaEvents::CAMPAIGN_WHATSAPP_SEND => ['onWhatsAppSend', 0], MetaEvents::CAMPAIGN_WHATSAPP_REGISTER_OPT_IN => ['onWhatsAppRegisterOptIn', 0], MetaEvents::CAMPAIGN_INSTAGRAM_SEND => ['onInstagramSend', 0], MetaEvents::CAMPAIGN_MESSAGE_DECISION => ['onMessageDecision', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_DECISION => ['onMessageDecision', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PRIVATE_REPLY => ['onInstagramCommentPrivateReply', 0]];
+        return [CampaignEvents::CAMPAIGN_ON_BUILD => ['onBuild', 0], MetaEvents::CAMPAIGN_WHATSAPP_SEND => ['onWhatsAppSend', 0], MetaEvents::CAMPAIGN_WHATSAPP_REGISTER_OPT_IN => ['onWhatsAppRegisterOptIn', 0], MetaEvents::CAMPAIGN_INSTAGRAM_SEND => ['onInstagramSend', 0], MetaEvents::CAMPAIGN_MESSAGE_DECISION => ['onMessageDecision', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_DECISION => ['onMessageDecision', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PRIVATE_REPLY => ['onInstagramCommentPrivateReply', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PUBLIC_REPLY => ['onInstagramCommentPublicReply', 0]];
     }
 
     public function onBuild(CampaignBuilderEvent $event): void
@@ -58,6 +58,7 @@ final class CampaignSubscriber implements EventSubscriberInterface
         $event->addDecision(MetaEvents::CAMPAIGN_MESSAGE_TYPE, ['label' => 'Meta message received or updated', 'description' => 'Continue when a matching inbound message or delivery status is received.', 'eventName' => MetaEvents::CAMPAIGN_MESSAGE_DECISION, 'formType' => MetaMessageDecisionType::class]);
         $event->addDecision(MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_TYPE, ['label' => 'Instagram comment on a specific post', 'description' => 'Trigger only for an exact Instagram account and media ID, with a whole-word keyword.', 'eventName' => MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_DECISION, 'formType' => InstagramCommentDecisionType::class, 'channel' => 'instagram']);
         $event->addAction('meta.instagram.comment.private_reply', ['label' => 'Private reply to matching Instagram comment', 'description' => 'Queue one private reply using the comment ID from the decision event.', 'batchEventName' => MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PRIVATE_REPLY, 'formType' => InstagramCommentPrivateReplyType::class, 'channel' => 'instagram']);
+        $event->addAction('meta.instagram.comment.public_reply', ['label' => 'Public reply to matching Instagram comment', 'description' => 'Queue one public reply using the comment ID from the decision event.', 'batchEventName' => MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PUBLIC_REPLY, 'formType' => InstagramCommentPrivateReplyType::class, 'channel' => 'instagram']);
     }
 
     public function onWhatsAppRegisterOptIn(PendingEvent $event): void
@@ -135,6 +136,35 @@ final class CampaignSubscriber implements EventSubscriberInterface
                 }
                 $asset = $this->asset($assetId);
                 $job = $this->queue->enqueue($asset, 'instagram_private_reply', ['recipient' => $commentId, 'text' => $message], $log->getLead(), 1, InstagramCommentAutomation::idempotencyKey($assetId, $commentId));
+                $log->appendToMetadata(['meta_job_id' => $job->getId(), 'meta_comment_id' => $commentId, 'queued' => true]);
+                $event->pass($log);
+            } catch (\Throwable $exception) {
+                $this->fail($event, $log, $exception, new \DateInterval('PT5M'));
+            }
+        }
+    }
+
+    public function onInstagramCommentPublicReply(PendingEvent $event): void
+    {
+        if (!$event->checkContext('meta.instagram.comment.public_reply')) { return; }
+        $event->setChannel('instagram');
+        foreach ($event->getPending() as $log) {
+            try {
+                $parent = $log->getEvent()->getParent();
+                if (null === $parent || MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_TYPE !== $parent->getType()) {
+                    throw new \DomainException('The public reply must directly follow an Instagram comment decision.');
+                }
+                $parentLog = $parent->getLogByContactAndRotation($log->getLead(), $log->getRotation());
+                $parentMetadata = $parentLog?->getMetadata() ?? [];
+                $commentId = (string) ($parentMetadata['meta_comment_id'] ?? '');
+                $assetId = (int) ($parent->getProperties()['asset_id'] ?? 0);
+                $configuredMessages = (string) ($log->getEvent()->getProperties()['message'] ?? '');
+                $messages = array_values(array_filter(array_map('trim', preg_split('/\R/u', $configuredMessages) ?: []), static fn (string $message): bool => '' !== $message));
+                if ('' === $commentId || [] === $messages || $assetId !== (int) ($parentMetadata['meta_asset_id'] ?? 0) || '' === (string) ($parent->getProperties()['media_id'] ?? '') || (string) $parent->getProperties()['media_id'] !== (string) ($parentMetadata['meta_media_id'] ?? '')) {
+                    throw new \DomainException('The comment, media ID, or public reply is missing.');
+                }
+                $asset = $this->asset($assetId);
+                $job = $this->queue->enqueueRotating($asset, 'instagram_public_reply', $messages, ['recipient' => $commentId], $log->getLead(), 5, InstagramCommentAutomation::publicReplyIdempotencyKey($assetId, $commentId));
                 $log->appendToMetadata(['meta_job_id' => $job->getId(), 'meta_comment_id' => $commentId, 'queued' => true]);
                 $event->pass($log);
             } catch (\Throwable $exception) {

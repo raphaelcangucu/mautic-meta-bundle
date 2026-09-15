@@ -74,6 +74,29 @@ final class OutboundPolicyTest extends TestCase
         );
     }
 
+    public function testInstagramCommentCooldownOnlyCountsTheSameReplyType(): void
+    {
+        $queries = [];
+        $db = $this->createMock(Connection::class);
+        $db->expects(self::exactly(4))->method('fetchOne')->willReturnCallback(
+            static function (string $sql, array $params) use (&$queries): int {
+                $queries[] = [$sql, $params];
+
+                return 0;
+            }
+        );
+
+        (new OutboundPolicy($db))->assertAllowed(
+            $this->asset(AssetType::InstagramAccount),
+            'instagram',
+            'comment-123',
+            'comment_reply',
+        );
+
+        self::assertStringContainsString('message_type = :messageType', $queries[3][0]);
+        self::assertSame('comment_reply', $queries[3][1]['messageType']);
+    }
+
     private function asset(AssetType $type): MetaAsset
     {
         return (new MetaAsset(7))->setType($type)->setSettings([]);

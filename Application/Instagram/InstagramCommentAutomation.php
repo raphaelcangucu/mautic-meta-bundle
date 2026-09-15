@@ -38,6 +38,11 @@ final class InstagramCommentAutomation
         return 'igc:'.hash('sha256', 'instagram-comment-private-reply:'.$assetId.':'.$commentId);
     }
 
+    public static function publicReplyIdempotencyKey(int $assetId, string $commentId): string
+    {
+        return 'igc-public:'.hash('sha256', 'instagram-comment-public-reply:'.$assetId.':'.$commentId);
+    }
+
     public function handle(MetaMessage $message, MetaContactIdentity $identity): void
     {
         $commentId = (string) ($message->getPayload()['commentId'] ?? '');

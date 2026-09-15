@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add idempotent public replies to Instagram comment campaigns with sequential message rotation.
+- Allow a public comment reply and a private Direct reply to run together without triggering the local cooldown between different reply types.
+
 ## 0.13.0 - 2026-09-15
 
 - Add the internal Tech Provider console and Embedded Signup flow with company, WABA, phone-number and token isolation.

@@ -99,6 +99,33 @@ final class OutboundQueueTest extends TestCase
         self::assertSame($existing, $queue->enqueue(new MetaAsset(4), 'instagram_private_reply', ['recipient' => 'comment-1', 'text' => 'Report'], null, 1, 'igc:example'));
     }
 
+    public function testRotatingMessagesAdvanceWithEachQueuedOperation(): void
+    {
+        $repository = $this->createMock(MetaOutboundJobRepository::class);
+        $repository->expects(self::exactly(2))->method('findOneBy')->with(['idempotencyKey' => 'igc-public:example'])->willReturn(null);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('persist');
+        $entityManager->expects(self::once())->method('flush');
+        $connection = $this->createMock(Connection::class);
+        $connection->expects(self::exactly(2))->method('fetchOne')->willReturnCallback(
+            static fn (string $sql): int => str_contains($sql, 'GET_LOCK') ? 1 : 7,
+        );
+        $connection->expects(self::once())->method('executeQuery');
+        $queue = new OutboundQueue($repository, $entityManager, $this->createMock(OutboundOperationExecutor::class), $connection, new NoopInboxIntegration());
+
+        $job = $queue->enqueueRotating(
+            new MetaAsset(4),
+            'instagram_public_reply',
+            ['First reply', 'Second reply', 'Third reply'],
+            ['recipient' => 'comment-1'],
+            null,
+            5,
+            'igc-public:example',
+        );
+
+        self::assertSame('Second reply', $job->getPayload()['text']);
+    }
+
     public function testHumanWhatsAppTextIsDispatchedImmediately(): void
     {
         $job = (new MetaOutboundJob(5))

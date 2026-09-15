@@ -51,7 +51,10 @@ final class OutboundPolicy
         if ($this->countSince($assetId, $channel, $recipient, new \DateTimeImmutable('-24 hours')) >= $recipientDaily) {
             throw new \DomainException(sprintf('Local anti-spam recipient limit reached (%d messages/24h).', $recipientDaily));
         }
-        if ($this->countSince($assetId, $channel, $recipient, new \DateTimeImmutable(sprintf('-%d seconds', $cooldown))) > 0) {
+        $cooldownMessageType = 'instagram' === $channel && in_array($messageType, ['private_reply', 'comment_reply'], true)
+            ? $messageType
+            : null;
+        if ($this->countSince($assetId, $channel, $recipient, new \DateTimeImmutable(sprintf('-%d seconds', $cooldown)), $cooldownMessageType) > 0) {
             throw new \DomainException(sprintf('Local anti-spam cooldown active for this recipient (%d seconds).', $cooldown));
         }
 
@@ -71,7 +74,7 @@ final class OutboundPolicy
         }
     }
 
-    private function countSince(int $assetId, string $channel, ?string $recipient, \DateTimeImmutable $since): int
+    private function countSince(int $assetId, string $channel, ?string $recipient, \DateTimeImmutable $since, ?string $messageType = null): int
     {
         $table = (defined('MAUTIC_TABLE_PREFIX') ? MAUTIC_TABLE_PREFIX : '').'meta_messages';
         $sql = "SELECT COUNT(id) FROM {$table} WHERE asset_id = :asset AND channel = :channel AND direction = 'outbound' AND status <> 'failed' AND date_added >= :since";
@@ -79,6 +82,10 @@ final class OutboundPolicy
         if (null !== $recipient) {
             $sql .= ' AND recipient = :recipient';
             $params['recipient'] = $recipient;
+        }
+        if (null !== $messageType) {
+            $sql .= ' AND message_type = :messageType';
+            $params['messageType'] = $messageType;
         }
 
         return (int) $this->connection->fetchOne($sql, $params);

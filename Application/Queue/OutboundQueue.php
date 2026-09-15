@@ -45,6 +45,41 @@ final class OutboundQueue
     }
 
     /**
+     * @param list<string>         $messages
+     * @param array<string, mixed> $payload
+     */
+    public function enqueueRotating(MetaAsset $asset, string $operation, array $messages, array $payload, ?Lead $contact = null, int $maxAttempts = 5, ?string $idempotencyKey = null): MetaOutboundJob
+    {
+        $messages = array_values(array_filter(array_map(static fn (string $message): string => trim($message), $messages), static fn (string $message): bool => '' !== $message));
+        if ([] === $messages) {
+            throw new \InvalidArgumentException('At least one rotating message is required.');
+        }
+
+        $assetId = (int) $asset->getId();
+        $lockName = 'mautic_meta_rotation_'.substr(hash('sha256', $assetId.':'.$operation), 0, 32);
+        if (1 !== (int) $this->connection->fetchOne('SELECT GET_LOCK(:name, 5)', ['name' => $lockName])) {
+            throw new \RuntimeException('Could not reserve the next outbound message variation.');
+        }
+
+        try {
+            if (null !== $idempotencyKey && $this->jobs->findOneBy(['idempotencyKey' => $idempotencyKey]) instanceof MetaOutboundJob) {
+                return $this->jobs->findOneBy(['idempotencyKey' => $idempotencyKey]);
+            }
+
+            $table = (defined('MAUTIC_TABLE_PREFIX') ? MAUTIC_TABLE_PREFIX : '').'meta_outbound_jobs';
+            $position = (int) $this->connection->fetchOne(
+                'SELECT COUNT(id) FROM '.$table.' WHERE asset_id = :asset AND operation = :operation',
+                ['asset' => $assetId, 'operation' => $operation],
+            );
+            $payload['text'] = $messages[$position % count($messages)];
+
+            return $this->enqueue($asset, $operation, $payload, $contact, $maxAttempts, $idempotencyKey);
+        } finally {
+            $this->connection->executeQuery('SELECT RELEASE_LOCK(:name)', ['name' => $lockName]);
+        }
+    }
+
+    /**
      * @return array{processed:int,succeeded:int,retried:int,failed:int,recovered:int}
      */
     public function work(int $limit = 100): array
