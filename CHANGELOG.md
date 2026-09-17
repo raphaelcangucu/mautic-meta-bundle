@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Drop the WhatsApp landing-consent pipeline, per-number `require_opt_in` send gate, consent-sync MCP tools, and campaign `meta.whatsapp.register_opt_in` action.
+- Keep Meta identities and map inbound opt-out to Mautic Do Not Contact on the `whatsapp` channel.
+
 - Add idempotent public replies to Instagram comment campaigns with sequential message rotation.
 - Allow a public comment reply and a private Direct reply to run together without triggering the local cooldown between different reply types.
 - Add an authenticated, read-only API endpoint that resolves Instagram post and reel permalinks to account-owned Graph media IDs.

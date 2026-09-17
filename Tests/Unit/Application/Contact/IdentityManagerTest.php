@@ -26,26 +26,26 @@ final class IdentityManagerTest extends TestCase
         $dnc->method('isContactable')->willReturn(Dnc::UNSUBSCRIBED);
 
         $this->expectExceptionMessage('Do Not Contact');
-        $manager->assertCanSend($this->asset(false), '5511999999999', new Lead());
+        $manager->assertCanSend($this->asset(), '5511999999999', new Lead());
     }
 
-    public function testRequiresExplicitOptInByDefault(): void
+    public function testAllowsUnknownIdentityWhenNotOnDnc(): void
     {
         [$manager, $repository] = $this->manager();
         $repository->method('findForAssetAndExternalId')->willReturn(null);
 
-        $this->expectExceptionMessage('Explicit WhatsApp opt-in');
-        $manager->assertCanSend($this->asset(), '5511999999999', null);
-    }
-
-    public function testAllowsOptedInIdentity(): void
-    {
-        [$manager, $repository] = $this->manager();
-        $identity = (new MetaContactIdentity())->setConsentStatus(ConsentStatus::OptedIn);
-        $repository->method('findForAssetAndExternalId')->willReturn($identity);
-
         $manager->assertCanSend($this->asset(), '5511999999999', null);
         self::assertTrue(true);
+    }
+
+    public function testRejectsOptedOutIdentity(): void
+    {
+        [$manager, $repository] = $this->manager();
+        $identity = (new MetaContactIdentity())->setConsentStatus(ConsentStatus::OptedOut);
+        $repository->method('findForAssetAndExternalId')->willReturn($identity);
+
+        $this->expectExceptionMessage('opted out');
+        $manager->assertCanSend($this->asset(), '5511999999999', null);
     }
 
     public function testOptOutWritesIdentityAndDnc(): void
@@ -70,15 +70,15 @@ final class IdentityManagerTest extends TestCase
         $repository = $this->createMock(MetaContactIdentityRepository::class);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $dnc = $this->createMock(DoNotContact::class);
+        $dnc->method('isContactable')->willReturn(Dnc::IS_CONTACTABLE);
 
         return [new IdentityManager($repository, $entityManager, $dnc), $repository, $dnc, $entityManager];
     }
 
-    private function asset(bool $requireOptIn = true): MetaAsset
+    private function asset(): MetaAsset
     {
         return (new MetaAsset())
             ->setConnection(new MetaConnection())
-            ->setType(AssetType::WhatsAppPhoneNumber)
-            ->setSettings(['require_opt_in' => $requireOptIn]);
+            ->setType(AssetType::WhatsAppPhoneNumber);
     }
 }

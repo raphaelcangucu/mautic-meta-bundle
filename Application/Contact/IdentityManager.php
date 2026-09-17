@@ -66,10 +66,6 @@ class IdentityManager
         ) {
             throw new \DomainException('A later WhatsApp opt-out remains in force.');
         }
-        $requiresOptIn = (bool) ($asset->getSettings()['require_opt_in'] ?? true);
-        if ($requiresOptIn && !$serviceReply && $identity?->getConsentStatus() !== ConsentStatus::OptedIn) {
-            throw new \DomainException('Explicit WhatsApp opt-in is required for this phone number.');
-        }
     }
 
     public function assertChannelContactable(?Lead $contact, string $channel): void

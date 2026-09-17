@@ -3,37 +3,7 @@
 {% block headerTitle %}{{ 'mautic.meta.ui.identities_and_contacts_8b891f'|trans }}{% endblock %}
 {% block metaBody %}
 <div class="meta-head"><div><h2>{{ 'mautic.meta.ui.identities_and_contacts_8b891f'|trans }}</h2><p>{{ 'mautic.meta.ui.channel_profiles_and_their_crm_links_ca79f1'|trans }}</p></div></div>
-<details class="meta-box meta-pad" {{ syncPreview ? 'open' : '' }}><summary>{{ 'mautic.meta.ui.synchronize_contacts_analysis_execution_and_history_84991e'|trans }}</summary><div class="panel panel-default ma-md"><div class="panel-heading"><h3 class="panel-title">{{ 'mautic.meta.ui.synchronize_opted_in_contacts_27e1ab'|trans }}</h3></div><div class="panel-body">
-    <p>{{ 'mautic.meta.ui.analysis_is_required_and_read_only_choose_explicit_evidence_or_at_55b7cc'|trans }}</p>
-    <form method="post" action="{{ path('mautic_meta_consent_sync_preview') }}" class="row">
-        <input type="hidden" name="_token" value="{{ csrf_token('meta_consent_sync_preview') }}">
-        <div class="col-md-3"><label>{{ 'mautic.meta.ui.whatsapp_asset_fa6d00'|trans }}</label><select name="asset_id" class="form-control" required>{% for asset in whatsappAssets %}<option value="{{ asset.id }}">{{ asset.name }} — {{ asset.phoneNumber }}</option>{% endfor %}</select></div>
-        <div class="col-md-3"><label>{{ 'mautic.meta.ui.source_d8ecad'|trans }}</label><select name="source_mode" class="form-control"><option value="mautic_api_waitlist">{{ 'mautic.meta.ui.waitlist_contacts_received_through_the_mautic_api_3be8c5'|trans }}</option><option value="explicit_consent_fields">{{ 'mautic.meta.ui.explicit_whatsapp_consent_fields_addeca'|trans }}</option></select></div>
-        <div class="col-md-2"><label>{{ 'mautic.meta.ui.stage_or_segment_ff00fa'|trans }}</label><input name="stage" class="form-control" value="Waitlist"></div>
-        <div class="col-md-2"><label>{{ 'mautic.meta.ui.explicit_source_version_4334ad'|trans }}</label><input name="source" class="form-control" value="lp_football"><input name="consent_version" class="form-control" value="football_weekly_report_v1"></div>
-        <div class="col-md-2"><label>{{ 'mautic.meta.ui.batch_size_04768e'|trans }}</label><input type="number" min="1" max="500" name="batch_size" class="form-control" value="100" required></div>
-        <div class="col-md-1"><label>&nbsp;</label><button class="btn btn-primary" type="submit">{{ 'mautic.meta.ui.analyze_contacts_a899d7'|trans }}</button></div>
-    </form>
-    {% if syncPreview %}
-        <hr><h4>{{ 'mautic.meta.ui.ready_to_confirm_asset_a23a31'|trans }} {{ syncPreview.asset.name }} ({{ syncPreview.asset.phone }})</h4>
-        <div class="table-responsive"><table class="table table-bordered"><tbody>
-        {% for key, value in syncPreview.counts %}<tr><th>{{ key|replace({'_': ' '})|title }}</th><td>{{ value }}</td></tr>{% endfor %}
-        </tbody></table></div>
-        {% if syncPreview.rejections is not empty %}<details><summary>{{ 'mautic.meta.ui.view_rejected_eba5f4'|trans }}{{ syncPreview.rejections|length }})</summary><pre>{{ syncPreview.rejections|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre></details>{% endif %}
-        <form method="post" action="{{ path('mautic_meta_consent_sync_start') }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('meta_consent_sync_start') }}"><input type="hidden" name="asset_id" value="{{ syncPreview.asset.id }}"><input type="hidden" name="idempotency_key" value="ui-{{ syncPreview.asset.id }}-{{ 'now'|date('U') }}">
-            {% if syncPreview.sourceMode|default('') == 'mautic_api_waitlist' %}<div class="checkbox"><label><input type="checkbox" name="trusted_waitlist_attestation" value="1" required> {{ 'mautic.meta.ui.i_confirm_that_the_selected_contacts_received_through_the_api_and_d21059'|trans }}</label></div>{% endif %}
-            <button class="btn btn-success" type="submit">{{ 'mautic.meta.ui.confirm_synchronization_6dbd6c'|trans }}</button>
-        </form>
-    {% endif %}
-</div></div>
-<div class="panel panel-default ma-md"><div class="panel-heading"><h3 class="panel-title">{{ 'mautic.meta.ui.synchronization_runs_96c925'|trans }}</h3></div><div class="panel-body"><div class="table-responsive"><table class="table table-hover">
-    <thead><tr><th>ID</th><th>{{ 'mautic.meta.ui.status_2d3abf'|trans }}</th><th>{{ 'mautic.meta.ui.asset_8263fd'|trans }}</th><th>{{ 'mautic.meta.ui.progress_4f236f'|trans }}</th><th>{{ 'mautic.meta.ui.operator_7a16ea'|trans }}</th><th>{{ 'mautic.meta.ui.date_e5e429'|trans }}</th><th></th></tr></thead><tbody>
-    {% for run in syncRuns %}<tr><td>{{ run.id }}</td><td>{{ run.status|replace({'_': ' '})|title }}</td><td>{{ run.asset.name }}</td><td>{{ run.counts.analyzed|default(0) }} {{ 'mautic.meta.ui.analyzed_ab961d'|trans }} {{ run.counts.eligible|default(0) }} {{ 'mautic.meta.ui.eligible_1f02f4'|trans }} {{ run.counts.rejected|default(0) }} {{ 'mautic.meta.ui.rejected_888b8d'|trans }}</td><td>{{ run.operator ? run.operator.name : ('mautic.meta.ui.system_mcp_440462'|trans) }}</td><td>{{ run.dateAdded|date('mautic.meta.ui.date_time_format'|trans) }}</td><td><a class="btn btn-default btn-sm" href="{{ path('mautic_meta_consent_sync_rejections', {runId: run.id}) }}">{{ 'mautic.meta.ui.rejected_e95515'|trans }}</a>{% if run.status in ['waiting','ready_to_confirm','syncing','failed'] %}<form style="display:inline" method="post" action="{{ path('mautic_meta_consent_sync_cancel', {runId: run.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('meta_consent_sync_cancel_' ~ run.id) }}"><button class="btn btn-danger btn-sm">{{ 'mautic.meta.ui.cancel_c111e0'|trans }}</button></form>{% endif %}</td></tr>
-    {% else %}<tr><td colspan="7">{{ 'mautic.meta.ui.no_synchronization_runs_yet_70e3d5'|trans }}</td></tr>{% endfor %}
-    </tbody></table></div>
-</div></div>
-</details><div class="panel panel-default ma-md"><div class="panel-body">
+<div class="panel panel-default ma-md"><div class="panel-body">
     <p>{{ 'mautic.meta.ui.link_profiles_to_mautic_contacts_and_track_consent_by_channel_afea7d'|trans }}</p>
     <form method="get" action="{{ path('mautic_meta_identities') }}" class="meta-filters">
         <div class="col-md-4"><label>{{ 'mautic.meta.ui.search_a62405'|trans }}</label><input type="search" name="search" value="{{ identityFilters.search }}" class="form-control" placeholder="{{ 'mautic.meta.ui.name_email_phone_meta_id_or_asset_b15ccd'|trans|e('html_attr') }}"></div>

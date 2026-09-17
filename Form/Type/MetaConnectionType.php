@@ -32,19 +32,6 @@ final class MetaConnectionType extends AbstractType
             ->add('app_secret', PasswordType::class, $secret + ['label' => 'mautic.meta.ui.meta_app_secret_528985'])
             ->add('access_token', PasswordType::class, $secret + ['label' => 'mautic.meta.ui.system_user_token_6e708e'])
             ->add('verify_token', PasswordType::class, $secret + ['label' => 'mautic.meta.ui.webhook_verification_token_46a3cc'])
-            ->add('consent_source_url', TextType::class, [
-                'required' => false,
-                'label' => 'mautic.meta.ui.landing_consent_evidence_url_6aa5b1',
-                'help' => 'mautic.meta.ui.https_endpoint_that_reads_persisted_landing_submissions_93e230',
-                'attr' => ['class' => 'form-control'],
-            ])
-            ->add('consent_source_secret', PasswordType::class, [
-                'required' => false,
-                'always_empty' => true,
-                'label' => 'mautic.meta.ui.landing_consent_evidence_secret_944ed8',
-                'help' => $editing ? 'mautic.meta.ui.keep_encrypted_value' : 'mautic.meta.ui.hmac_secret',
-                'attr' => ['class' => 'form-control', 'autocomplete' => 'new-password'],
-            ])
             ->add('graph_version', TextType::class, [
                 'label' => 'mautic.meta.ui.graph_api_version_adc171', 'data' => $options['data']['graph_version'] ?? 'v26.0',
                 'constraints' => [new NotBlank(), new Regex('/^v\d+\.\d+$/')], 'attr' => ['class' => 'form-control'],

@@ -32,7 +32,7 @@ final class ManageMetaTool extends AbstractMcpTool
         'consentSource' => ['type' => 'string'], 'consentedAt' => ['type' => 'string', 'format' => 'date-time'],
         'name' => ['type' => 'string'], 'app_id' => ['type' => 'string'], 'app_secret' => ['type' => 'string'],
         'access_token' => ['type' => 'string'], 'verify_token' => ['type' => 'string'], 'graph_version' => ['type' => 'string'],
-        'webhook_adapters_json' => ['type' => 'string'], 'consent_source_url' => ['type' => 'string'], 'consent_source_secret' => ['type' => 'string'],
+        'webhook_adapters_json' => ['type' => 'string'],
         'external_id' => ['type' => 'string', 'pattern' => '^[A-Za-z0-9._:-]{1,191}$', 'description' => 'Meta asset ID as returned by Graph API; not an E.164 phone number.'], 'type' => ['type' => 'string', 'enum' => ['whatsapp_business_account', 'whatsapp_phone_number', 'instagram_account', 'facebook_page']],
         'username' => ['type' => ['string', 'null']], 'phone_number' => ['type' => ['string', 'null']], 'is_default' => ['type' => 'boolean'],
         'businessAccountId' => ['type' => 'integer'], 'language' => ['type' => 'string'], 'category' => ['type' => 'string'],

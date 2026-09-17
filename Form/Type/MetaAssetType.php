@@ -41,7 +41,6 @@ final class MetaAssetType extends AbstractType
                 'label' => 'mautic.meta.ui.add_the_ninth_digit_to_legacy_brazilian_mobile_numbers_0af6eb',
             ])
             ->add('contact_match_field', TextType::class, ['required' => false, 'label' => 'mautic.meta.ui.contact_field_for_exact_matching_753453', 'help' => 'mautic.meta.ui.field_alias_containing_a_whatsapp_number_or_instagram_id_whatsapp_e33abd'])
-            ->add('require_opt_in', CheckboxType::class, ['required' => false, 'label' => 'mautic.meta.ui.require_explicit_whatsapp_consent_da2080'])
             ->add('daily_send_limit', IntegerType::class, ['required' => false, 'label' => 'mautic.meta.ui.maximum_messages_per_day_f724e8', 'help' => 'mautic.meta.ui.can_be_reduced_maximum_whatsapp_250_instagram_facebook_50_a356fb', 'constraints' => [new Positive()]])
             ->add('hourly_send_limit', IntegerType::class, ['required' => false, 'label' => 'mautic.meta.ui.maximum_messages_per_hour_3fd3bd', 'help' => 'mautic.meta.ui.maximum_whatsapp_50_instagram_facebook_20_4e962c', 'constraints' => [new Positive()]])
             ->add('recipient_daily_limit', IntegerType::class, ['required' => false, 'label' => 'mautic.meta.ui.maximum_per_recipient_per_day_14e728', 'help' => 'mautic.meta.ui.between_1_and_3_to_limit_repeated_campaign_messages_a1fa83', 'constraints' => [new Positive()]])

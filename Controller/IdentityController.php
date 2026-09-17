@@ -7,14 +7,9 @@ namespace MauticPlugin\MauticMetaBundle\Controller;
 use Mautic\CoreBundle\Security\Permissions\CorePermissions;
 use Mautic\LeadBundle\Entity\Lead;
 use Mautic\LeadBundle\Model\LeadModel;
-use Mautic\UserBundle\Entity\User;
-use MauticPlugin\MauticMetaBundle\Application\Consent\WhatsAppConsentSyncService;
 use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
-use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Domain\ConsentStatus;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAssetRepository;
-use MauticPlugin\MauticMetaBundle\Entity\MetaConsentSyncRun;
-use MauticPlugin\MauticMetaBundle\Entity\MetaConsentSyncRunRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaContactIdentity;
 use MauticPlugin\MauticMetaBundle\Entity\MetaContactIdentityRepository;
 use Mautic\CoreBundle\Controller\CommonController;
@@ -26,7 +21,7 @@ final class IdentityController extends CommonController
 {
     use MetaViewTrait;
 
-    public function index(CorePermissions $permissions, MetaContactIdentityRepository $identities, MetaAssetRepository $assets, MetaConsentSyncRunRepository $runs, Request $request, int $page = 1): Response
+    public function index(CorePermissions $permissions, MetaContactIdentityRepository $identities, MetaAssetRepository $assets, Request $request, int $page = 1): Response
     {
         if (!$permissions->isGranted('meta:messages:view')) { throw $this->createAccessDeniedException(); }
 
@@ -41,90 +36,14 @@ final class IdentityController extends CommonController
         if ($page > $lastPage) {
             return $this->redirectToRoute('mautic_meta_identities', ['page' => $lastPage, 'search' => $search, 'asset' => $assetId, 'consent' => $consent, 'channel' => $channel, 'limit' => $limit, 'linked' => $request->query->getString('linked')]);
         }
-        $allAssets = $assets->findAll();
 
         return $this->metaView('@MauticMeta/Identity/index.html.twig', [
             'identities' => $identityPage['items'],
             'listing' => ['total' => $identityPage['total'], 'page' => $page, 'pages' => $lastPage, 'limit' => $limit, 'pageKey' => 'page'],
             'identityTotal' => $identityPage['total'], 'identityPage' => $page, 'identityLimit' => $limit,
             'identityFilters' => ['search' => $search, 'asset' => $assetId, 'channel' => $channel, 'consent' => $consent],
-            'allAssets' => $allAssets,
-            'whatsappAssets' => array_values(array_filter($allAssets, static fn ($asset): bool => AssetType::WhatsAppPhoneNumber === $asset->getType())),
-            'syncRuns' => $runs->findBy([], ['id' => 'DESC'], 20),
-            'syncPreview' => $request->getSession()->get('meta_consent_sync_preview'),
+            'allAssets' => $assets->findAll(),
         ]);
-    }
-
-    public function previewSync(Request $request, CorePermissions $permissions, WhatsAppConsentSyncService $sync): RedirectResponse
-    {
-        $this->assertSyncAccess($request, $permissions, 'meta_consent_sync_preview');
-        try {
-            $sourceMode = (string) $request->request->get('source_mode', 'explicit_consent_fields');
-            $preview = 'mautic_api_waitlist' === $sourceMode
-                ? $sync->previewMauticWaitlist((int) $request->request->get('asset_id'), (string) $request->request->get('stage', 'Waitlist'), (int) $request->request->get('batch_size', 100))
-                : $sync->preview((int) $request->request->get('asset_id'), (string) $request->request->get('source'), (string) $request->request->get('consent_version'), (int) $request->request->get('batch_size', 100));
-            $request->getSession()->set('meta_consent_sync_preview', $preview);
-            $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.analysis_completed_review_the_counters_before_confirming_synchronization'));
-        } catch (\Throwable $exception) {
-            $this->addFlash('error', $exception->getMessage());
-        }
-
-        return $this->redirectToRoute('mautic_meta_identities');
-    }
-
-    public function startSync(Request $request, CorePermissions $permissions, WhatsAppConsentSyncService $sync): RedirectResponse
-    {
-        $this->assertSyncAccess($request, $permissions, 'meta_consent_sync_start');
-        $preview = $request->getSession()->get('meta_consent_sync_preview');
-        if (!is_array($preview) || (int) ($preview['asset']['id'] ?? 0) !== (int) $request->request->get('asset_id')) {
-            $this->addFlash('error', $this->translator->trans('mautic.meta.ui.a_matching_read_only_analysis_is_required_before_synchronization'));
-            return $this->redirectToRoute('mautic_meta_identities');
-        }
-        if ('mautic_api_waitlist' === ($preview['sourceMode'] ?? null) && '1' !== (string) $request->request->get('trusted_waitlist_attestation')) {
-            $this->addFlash('error', $this->translator->trans('mautic.meta.ui.the_trusted_api_waitlist_consent_attestation_must_be_explicitly_confirmed'));
-            return $this->redirectToRoute('mautic_meta_identities');
-        }
-        $user = $this->getUser();
-        $waitlistMode = 'mautic_api_waitlist' === ($preview['sourceMode'] ?? null);
-        $run = $sync->start(
-            (int) $preview['asset']['id'],
-            $waitlistMode ? 'mautic_api_waitlist' : (string) $preview['criteria']['source'],
-            $waitlistMode ? (string) $preview['criteria']['stage'] : (string) $preview['criteria']['consentVersion'],
-            (int) $preview['criteria']['batchSize'],
-            true,
-            (string) $request->request->get('idempotency_key'),
-            $user instanceof User ? $user : null,
-        );
-        $request->getSession()->remove('meta_consent_sync_preview');
-        $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.sync_queued', ['%id%' => $run->getId()]));
-
-        return $this->redirectToRoute('mautic_meta_identities');
-    }
-
-    public function cancelSync(int $runId, Request $request, CorePermissions $permissions, MetaConsentSyncRunRepository $runs, WhatsAppConsentSyncService $sync): RedirectResponse
-    {
-        $this->assertSyncAccess($request, $permissions, 'meta_consent_sync_cancel_'.$runId);
-        $run = $runs->find($runId);
-        if (!$run instanceof MetaConsentSyncRun) {
-            throw $this->createNotFoundException();
-        }
-        $sync->cancel($run);
-        $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.synchronization_cancelled_safely_at_its_last_checkpoint'));
-
-        return $this->redirectToRoute('mautic_meta_identities');
-    }
-
-    public function rejections(int $runId, CorePermissions $permissions, MetaConsentSyncRunRepository $runs): Response
-    {
-        if (!$permissions->isGranted('meta:messages:view')) {
-            throw $this->createAccessDeniedException();
-        }
-        $run = $runs->find($runId);
-        if (!$run instanceof MetaConsentSyncRun) {
-            throw $this->createNotFoundException();
-        }
-
-        return $this->json(['runId' => $runId, 'rejections' => $run->getRejections()], 200, ['Content-Disposition' => 'attachment; filename="meta-consent-sync-'.$runId.'-rejections.json"']);
     }
 
     public function update(int $identityId, Request $request, CorePermissions $permissions, MetaContactIdentityRepository $identities, IdentityManager $manager, LeadModel $leads): RedirectResponse
@@ -178,12 +97,5 @@ final class IdentityController extends CommonController
         }
 
         return $this->redirectToRoute('mautic_meta_identities');
-    }
-
-    private function assertSyncAccess(Request $request, CorePermissions $permissions, string $csrfId): void
-    {
-        if (!$permissions->isGranted('meta:messages:edit') || !$this->isCsrfTokenValid($csrfId, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
     }
 }

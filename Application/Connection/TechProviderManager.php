@@ -86,7 +86,7 @@ final class TechProviderManager
                 $this->em->flush();
                 $this->asset($customer, $wabaId, AssetType::WhatsAppBusinessAccount, (string) $waba['name']);
                 $number = $this->asset($customer, $phoneId, AssetType::WhatsAppPhoneNumber, (string) ($phone['verified_name'] ?? $name));
-                $number->setPhoneNumber((string) ($phone['display_phone_number'] ?? ''))->setSettings(array_replace($number->getSettings(), ['waba_id' => $wabaId, 'require_opt_in' => true]));
+                $number->setPhoneNumber((string) ($phone['display_phone_number'] ?? ''))->setSettings(array_replace($number->getSettings(), ['waba_id' => $wabaId]));
                 $this->em->flush();
 
                 return $customer;
@@ -99,7 +99,7 @@ final class TechProviderManager
     private function asset(MetaConnection $connection, string $id, AssetType $type, string $name): MetaAsset
     {
         $asset = $this->assets->findOneBy(['connection' => $connection, 'externalId' => $id, 'type' => $type->value]);
-        $asset ??= (new MetaAsset())->setConnection($connection)->setExternalId($id)->setType($type)->setSettings(['default_region' => 'BR', 'require_opt_in' => true]);
+        $asset ??= (new MetaAsset())->setConnection($connection)->setExternalId($id)->setType($type)->setSettings(['default_region' => 'BR']);
         $asset->setName($name)->setIsPublished(true)->setStatus('pending');
         $this->em->persist($asset);
 

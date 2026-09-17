@@ -10,7 +10,6 @@ use Mautic\CampaignBundle\Event\DecisionEvent;
 use Mautic\CampaignBundle\Event\PendingEvent;
 use MauticPlugin\MauticMetaBundle\Application\Automation\ContactTokenResolver;
 use MauticPlugin\MauticMetaBundle\Application\Automation\MessageDecisionMatcher;
-use MauticPlugin\MauticMetaBundle\Application\Consent\WhatsAppConsentRegistrationService;
 use MauticPlugin\MauticMetaBundle\Application\Instagram\InstagramCommentAutomation;
 use MauticPlugin\MauticMetaBundle\Application\Instagram\InstagramCommentMatcher;
 use MauticPlugin\MauticMetaBundle\Application\Instagram\InstagramService;
@@ -24,7 +23,6 @@ use MauticPlugin\MauticMetaBundle\Form\Type\InstagramCommentDecisionType;
 use MauticPlugin\MauticMetaBundle\Form\Type\InstagramCommentPrivateReplyType;
 use MauticPlugin\MauticMetaBundle\Form\Type\MetaMessageDecisionType;
 use MauticPlugin\MauticMetaBundle\Form\Type\WhatsAppCampaignActionType;
-use MauticPlugin\MauticMetaBundle\Form\Type\WhatsAppConsentCampaignActionType;
 use MauticPlugin\MauticMetaBundle\MetaEvents;
 use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 use Psr\Log\LoggerInterface;
@@ -40,63 +38,23 @@ final class CampaignSubscriber implements EventSubscriberInterface
         private MessageDecisionMatcher $decisionMatcher,
         private OutboundQueue $queue,
         private LoggerInterface $logger,
-        private WhatsAppConsentRegistrationService $consentRegistration,
         private InstagramCommentMatcher $commentMatcher,
         private InboxIntegrationInterface $inboxIntegration,
     ) {}
 
     public static function getSubscribedEvents(): array
     {
-        return [CampaignEvents::CAMPAIGN_ON_BUILD => ['onBuild', 0], MetaEvents::CAMPAIGN_WHATSAPP_SEND => ['onWhatsAppSend', 0], MetaEvents::CAMPAIGN_WHATSAPP_REGISTER_OPT_IN => ['onWhatsAppRegisterOptIn', 0], MetaEvents::CAMPAIGN_INSTAGRAM_SEND => ['onInstagramSend', 0], MetaEvents::CAMPAIGN_MESSAGE_DECISION => ['onMessageDecision', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_DECISION => ['onMessageDecision', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PRIVATE_REPLY => ['onInstagramCommentPrivateReply', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PUBLIC_REPLY => ['onInstagramCommentPublicReply', 0]];
+        return [CampaignEvents::CAMPAIGN_ON_BUILD => ['onBuild', 0], MetaEvents::CAMPAIGN_WHATSAPP_SEND => ['onWhatsAppSend', 0], MetaEvents::CAMPAIGN_INSTAGRAM_SEND => ['onInstagramSend', 0], MetaEvents::CAMPAIGN_MESSAGE_DECISION => ['onMessageDecision', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_DECISION => ['onMessageDecision', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PRIVATE_REPLY => ['onInstagramCommentPrivateReply', 0], MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PUBLIC_REPLY => ['onInstagramCommentPublicReply', 0]];
     }
 
     public function onBuild(CampaignBuilderEvent $event): void
     {
         $event->addAction('meta.whatsapp.send', ['label' => 'Send Meta WhatsApp message', 'description' => 'Send text or an approved template from a selected WhatsApp number.', 'batchEventName' => MetaEvents::CAMPAIGN_WHATSAPP_SEND, 'formType' => WhatsAppCampaignActionType::class, 'channel' => 'whatsapp']);
-        $event->addAction('meta.whatsapp.register_opt_in', ['label' => 'Register evidenced WhatsApp opt-in', 'description' => 'Register opt-in only when every configured contact evidence field is valid.', 'batchEventName' => MetaEvents::CAMPAIGN_WHATSAPP_REGISTER_OPT_IN, 'formType' => WhatsAppConsentCampaignActionType::class, 'channel' => 'whatsapp']);
         $event->addAction('meta.instagram.send', ['label' => 'Send Meta Instagram reply', 'description' => 'Send a private reply, public reply, or DM from a selected Instagram account.', 'batchEventName' => MetaEvents::CAMPAIGN_INSTAGRAM_SEND, 'formType' => InstagramCampaignActionType::class, 'channel' => 'instagram']);
         $event->addDecision(MetaEvents::CAMPAIGN_MESSAGE_TYPE, ['label' => 'Meta message received or updated', 'description' => 'Continue when a matching inbound message or delivery status is received.', 'eventName' => MetaEvents::CAMPAIGN_MESSAGE_DECISION, 'formType' => MetaMessageDecisionType::class]);
         $event->addDecision(MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_TYPE, ['label' => 'Instagram comment on a specific post', 'description' => 'Trigger only for an exact Instagram account and media ID, with a whole-word keyword.', 'eventName' => MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_DECISION, 'formType' => InstagramCommentDecisionType::class, 'channel' => 'instagram']);
         $event->addAction('meta.instagram.comment.private_reply', ['label' => 'Private reply to matching Instagram comment', 'description' => 'Queue one private reply using the comment ID from the decision event.', 'batchEventName' => MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PRIVATE_REPLY, 'formType' => InstagramCommentPrivateReplyType::class, 'channel' => 'instagram']);
         $event->addAction('meta.instagram.comment.public_reply', ['label' => 'Public reply to matching Instagram comment', 'description' => 'Queue one public reply using the comment ID from the decision event.', 'batchEventName' => MetaEvents::CAMPAIGN_INSTAGRAM_COMMENT_PUBLIC_REPLY, 'formType' => InstagramCommentPrivateReplyType::class, 'channel' => 'instagram']);
-    }
-
-    public function onWhatsAppRegisterOptIn(PendingEvent $event): void
-    {
-        if (!$event->checkContext('meta.whatsapp.register_opt_in')) {
-            return;
-        }
-
-        $properties = $event->getEvent()->getProperties();
-        foreach ($event->getPending() as $log) {
-            try {
-                $lead = $log->getLead();
-                $fields = $lead->getProfileFields();
-                $value = static fn (string $property): mixed => $fields[(string) ($properties[$property] ?? '')] ?? null;
-                $result = $this->consentRegistration->register([
-                    'contactId'            => $lead->getId(),
-                    'assetId'              => (int) ($properties['asset_id'] ?? 0),
-                    'phone'                => $value('phone_field'),
-                    'consent'              => $value('consent_field'),
-                    'consentAt'            => $value('consent_at_field'),
-                    'business'             => $value('business_field'),
-                    'locale'               => $value('locale_field'),
-                    'purpose'              => $value('purpose_field'),
-                    'source'               => $value('source_field'),
-                    'consentText'          => $value('consent_text_field'),
-                    'consentVersion'       => $value('consent_version_field'),
-                    'externalSubmissionId' => $value('external_submission_id_field'),
-                    'pageUrl'              => $value('page_url_field'),
-                ]);
-                if (in_array($result['status'], ['rejected', 'conflict'], true)) {
-                    throw new \DomainException((string) ($result['reason'] ?? 'WhatsApp consent was rejected.'));
-                }
-                $log->appendToMetadata(['meta_consent' => $result]);
-                $event->pass($log);
-            } catch (\Throwable $exception) {
-                $this->fail($event, $log, $exception);
-            }
-        }
     }
 
     public function onMessageDecision(DecisionEvent $event): void

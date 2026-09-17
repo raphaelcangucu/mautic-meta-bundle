@@ -28,8 +28,6 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessageRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
-use MauticPlugin\MauticMetaBundle\Entity\MetaWhatsAppConsent;
-use MauticPlugin\MauticMetaBundle\Entity\MetaWhatsAppConsentRepository;
 use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplate;
 use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplateRepository;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
@@ -56,7 +54,6 @@ final class MetaService
         private InstagramService $instagram,
         private LeadModel $leads,
         private EntityManagerInterface $entityManager,
-        private MetaWhatsAppConsentRepository $consents,
         private PhoneNormalizer $phoneNormalizer,
         private FacebookReadService $facebook,
     ) {
@@ -334,9 +331,8 @@ final class MetaService
 
         $created = !$identity instanceof MetaContactIdentity;
         $identity ??= (new MetaContactIdentity())->setAsset($asset)->setExternalId($externalId);
-        $submissionId = 'mcp-upsert-'.hash('sha256', (string) $idempotencyKey);
 
-        return $this->entityManager->wrapInTransaction(function () use ($identity, $created, $contact, $asset, $externalId, $phoneNumber, $channel, $status, $source, $consentedAt, $submissionId): array {
+        return $this->entityManager->wrapInTransaction(function () use ($identity, $created, $contact, $externalId, $phoneNumber, $channel, $status, $source, $consentedAt): array {
             $identity->setContact($contact)->setExternalId($externalId)->setArchivedAt(null);
             if ('whatsapp' === $channel) {
                 $identity->setPhoneNumber($phoneNumber);
@@ -347,15 +343,6 @@ final class MetaService
                 $identity->setConsentStatus($status)->setConsentSource($source)->setConsentedAt(ConsentStatus::OptedIn === $status ? $consentedAt : null);
             }
             $this->entityManager->persist($identity);
-            $this->entityManager->flush();
-
-            if ('whatsapp' === $channel && ConsentStatus::OptedIn === $status) {
-                $audit = $this->consents->findSubmission($asset, $submissionId) ?? (new MetaWhatsAppConsent())->setAsset($asset)->setIdentity($identity)->setContact($contact)->setExternalSubmissionId($submissionId);
-                $audit->setIdentity($identity)->setPhoneNumber($phoneNumber)->setConsentAt($consentedAt)
-                    ->setEvidenceHash(hash('sha256', $submissionId.':'.$externalId.':'.$source))
-                    ->setStatus('accepted')->setTrustedAttestation($source, 'mcp_manual_authorization')->setAttestedAt($consentedAt)->setScope('mcp_upsert_identity');
-                $this->entityManager->persist($audit);
-            }
             $this->entityManager->flush();
 
             return ['status' => $created ? 'created' : 'updated', 'identity' => $this->normalizeIdentity($identity), 'replayed' => false];
@@ -376,7 +363,7 @@ final class MetaService
     private function createConnection(array $data): array
     {
         $this->assertPermission('create', 'connections');
-        $connection = $this->connectionManager->create((string) ($data['name'] ?? ''), (string) ($data['app_id'] ?? ''), (string) ($data['app_secret'] ?? ''), (string) ($data['access_token'] ?? ''), (string) ($data['verify_token'] ?? ''), (string) ($data['graph_version'] ?? 'v26.0'), (string) ($data['webhook_adapters_json'] ?? ''), (string) ($data['consent_source_url'] ?? ''), (string) ($data['consent_source_secret'] ?? ''));
+        $connection = $this->connectionManager->create((string) ($data['name'] ?? ''), (string) ($data['app_id'] ?? ''), (string) ($data['app_secret'] ?? ''), (string) ($data['access_token'] ?? ''), (string) ($data['verify_token'] ?? ''), (string) ($data['graph_version'] ?? 'v26.0'), (string) ($data['webhook_adapters_json'] ?? ''));
 
         return ['status' => 'created', 'connection' => $this->normalizeConnection($connection)];
     }
@@ -418,7 +405,7 @@ final class MetaService
         $this->assertPermission('edit', 'connections');
         $asset = $this->asset((int) $id);
         $settings = $asset->getSettings();
-        $merged = $data + ['name' => $asset->getName(), 'type' => $asset->getType()->value, 'external_id' => $asset->getExternalId(), 'username' => $asset->getUsername(), 'phone_number' => $asset->getPhoneNumber(), 'default_region' => $settings['default_region'] ?? 'BR', 'contact_match_field' => $settings['contact_match_field'] ?? null, 'require_opt_in' => $settings['require_opt_in'] ?? true, 'daily_send_limit' => $settings['daily_send_limit'] ?? null, 'hourly_send_limit' => $settings['hourly_send_limit'] ?? null, 'recipient_daily_limit' => $settings['recipient_daily_limit'] ?? null, 'recipient_cooldown_seconds' => $settings['recipient_cooldown_seconds'] ?? null, 'is_default' => $asset->isDefault()];
+        $merged = $data + ['name' => $asset->getName(), 'type' => $asset->getType()->value, 'external_id' => $asset->getExternalId(), 'username' => $asset->getUsername(), 'phone_number' => $asset->getPhoneNumber(), 'default_region' => $settings['default_region'] ?? 'BR', 'contact_match_field' => $settings['contact_match_field'] ?? null, 'daily_send_limit' => $settings['daily_send_limit'] ?? null, 'hourly_send_limit' => $settings['hourly_send_limit'] ?? null, 'recipient_daily_limit' => $settings['recipient_daily_limit'] ?? null, 'recipient_cooldown_seconds' => $settings['recipient_cooldown_seconds'] ?? null, 'is_default' => $asset->isDefault()];
         $this->assetManager->update($asset, $merged);
 
         return ['status' => 'updated', 'asset' => $this->normalizeAsset($asset)];
@@ -549,7 +536,7 @@ final class MetaService
     private function redactSecrets(array $data): array
     {
         foreach ($data as $key => $value) {
-            if (preg_match('/^(?:access_?token|verify_?token|app_?secret|consent_source_secret|password|authorization|sealed_secret)$/i', (string) $key)) {
+            if (preg_match('/^(?:access_?token|verify_?token|app_?secret|password|authorization|sealed_secret)$/i', (string) $key)) {
                 $data[$key] = '[REDACTED]';
             } elseif (is_array($value)) {
                 $data[$key] = $this->redactSecrets($value);
