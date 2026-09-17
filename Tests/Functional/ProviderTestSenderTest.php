@@ -24,7 +24,7 @@ final class ProviderTestSenderTest extends MauticMysqlTestCase
     {
         $connection = (new MetaConnection())->setName('Test provider')->setAppId('1122334455')->setStatus('active')->setIsPublished(true);
         $waba = (new MetaAsset())->setName('WABA')->setExternalId('waba')->setConnection($connection)->setType(AssetType::WhatsAppBusinessAccount);
-        $phone = (new MetaAsset())->setName('Phone')->setExternalId('phone')->setConnection($connection)->setType(AssetType::WhatsAppPhoneNumber)->setStatus('active')->setIsPublished(true)->setSettings(['waba_id' => 'waba', 'require_opt_in' => true]);
+        $phone = (new MetaAsset())->setName('Phone')->setExternalId('phone')->setConnection($connection)->setType(AssetType::WhatsAppPhoneNumber)->setStatus('active')->setIsPublished(true)->setSettings(['waba_id' => 'waba']);
         $template = (new WhatsAppTemplate())->setBusinessAccount($waba)->setName('welcome')->setLanguage('pt_BR')->setStatus('APPROVED');
         $identity = (new MetaContactIdentity())->setAsset($phone)->setExternalId('5511999999999')->setConsentStatus($consent);
         foreach ([$connection, $waba, $phone, $template, $identity] as $entity) {

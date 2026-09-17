@@ -64,7 +64,7 @@ final class ConnectionController extends CommonController
         if ($form->isSubmitted() && $form->isValid()) {
             $data = $form->getData();
             try {
-                $manager->create($data['name'], $data['app_id'], $data['app_secret'], $data['access_token'], $data['verify_token'], $data['graph_version'], (string) ($data['webhook_adapters_json'] ?? ''), (string) ($data['consent_source_url'] ?? ''), (string) ($data['consent_source_secret'] ?? ''));
+                $manager->create($data['name'], $data['app_id'], $data['app_secret'], $data['access_token'], $data['verify_token'], $data['graph_version'], (string) ($data['webhook_adapters_json'] ?? ''));
                 $this->addFlash('notice', $this->translator->trans('mautic.meta.ui.meta_connection_created_add_its_waba_phone_numbers_or_instagram_accounts_next'));
 
                 return $this->redirectToRoute('mautic_meta_connections', [], Response::HTTP_SEE_OTHER);
@@ -86,7 +86,7 @@ final class ConnectionController extends CommonController
             throw $this->createNotFoundException();
         }
         $form = $this->createForm(MetaConnectionType::class, [
-            'name' => $connection->getName(), 'app_id' => $connection->getAppId(), 'graph_version' => $connection->getGraphVersion(), 'webhook_adapters_json' => $this->adapterJson($connection), 'consent_source_url' => $connection->getSettings()['consent_source_url'] ?? '',
+            'name' => $connection->getName(), 'app_id' => $connection->getAppId(), 'graph_version' => $connection->getGraphVersion(), 'webhook_adapters_json' => $this->adapterJson($connection),
         ], ['editing' => true]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
@@ -134,7 +134,7 @@ final class ConnectionController extends CommonController
         if (!$connection instanceof MetaConnection) {
             throw $this->createNotFoundException();
         }
-        $form = $this->createForm(MetaAssetType::class, ['default_region' => 'BR', 'trusted_import_default_region' => 'BR', 'trusted_import_convert_legacy_br_mobile' => true, 'require_opt_in' => true]);
+        $form = $this->createForm(MetaAssetType::class, ['default_region' => 'BR', 'trusted_import_default_region' => 'BR', 'trusted_import_convert_legacy_br_mobile' => true]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             $manager->create($connection, $form->getData());
@@ -159,8 +159,8 @@ final class ConnectionController extends CommonController
         $form = $this->createForm(MetaAssetType::class, [
             'name' => $asset->getName(), 'type' => $asset->getType()->value, 'external_id' => $asset->getExternalId(),
             'username' => $asset->getUsername(), 'phone_number' => $asset->getPhoneNumber(),
-            'default_region' => $settings['default_region'] ?? 'BR', 'trusted_import_default_region' => $settings['trusted_import_default_region'] ?? $settings['default_region'] ?? 'BR', 'trusted_import_convert_legacy_br_mobile' => $settings['trusted_import_convert_legacy_br_mobile'] ?? true, 'contact_match_field' => $settings['contact_match_field'] ?? null,
-            'require_opt_in' => $settings['require_opt_in'] ?? true, 'is_default' => $asset->isDefault(),
+            'default_region' => $settings['default_region'] ?? 'BR', 'trusted_import_default_region' => $settings['trusted_import_default_region'] ?? $settings['default_region'] ?? 'BR', 'trusted_import_convert_legacy_br_mobile' => $settings['trusted_import_convert_legacy_br_mobile'] ?? true,             'contact_match_field' => $settings['contact_match_field'] ?? null,
+            'is_default' => $asset->isDefault(),
             'daily_send_limit' => $settings['daily_send_limit'] ?? null,
             'hourly_send_limit' => $settings['hourly_send_limit'] ?? null,
             'recipient_daily_limit' => $settings['recipient_daily_limit'] ?? null,

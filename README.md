@@ -77,55 +77,11 @@ curl --get \
 
 The read-only endpoint accepts `/p/{shortcode}/` and `/reel/{shortcode}/` URLs. It removes the query string, fragment, optional `www`, and trailing slash for matching, then searches a bounded number of pages from the connected account's own media edge. A successful response contains `asset_id`, `account`, `media_id`, canonical `permalink`, `media_type`, and `timestamp`. A media-not-found response uses HTTP 404 with `code=instagram_media_not_found` and `retryable=true`, so callers can safely retry newly created publications. Responses never contain Meta credentials.
 
-## Landing WhatsApp consent
+## WhatsApp contactability
 
-Two independent consent sources are supported:
+Landing pages and CRM signup collect the phone number. Campaigns send to contacts who are in the source segment and are **not** on Mautic Do Not Contact for the `whatsapp` channel.
 
-- `explicit_consent_fields`: individually persisted checkbox evidence.
-- `mautic_api_waitlist`: contacts classified in the Waitlist stage or segment, backed by authenticated API-origin tracking for new contacts or an explicit administrator attestation for historical contacts.
-
-The second mode reads Mautic's own `leads`, `stages`, `lead_lists`, and `lead_lists_leads` tables. It checks `phone` and `mobile`, does not modify contact names, never clears DNC/opt-out, and never sends a message. In **Meta > Identities**, select **Contatos Waitlist recebidos pela API do Mautic**, analyze, review every counter, and explicitly accept the displayed attestation before starting.
-
-For MCP clients using the consent synchronization operations, the MetaBundle accepts the Waitlist mode through the existing compatibility fields:
-
-```json
-{
-  "assetId": 2,
-  "source": "mautic_api_waitlist",
-  "consentVersion": "Waitlist",
-  "batchSize": 100,
-  "onlyUnsynced": true,
-  "dryRun": true
-}
-```
-
-At the MetaBundle service boundary these values are persisted as `sourceMode=mautic_api_waitlist` and `stage=Waitlist`.
-
-Configure the **Landing consent evidence URL** and its HMAC secret on the Meta connection. The landing backend posts new consent events to:
-
-```text
-POST /meta/consent/landing/{connectionId}/{assetId}
-X-Mautic-Meta-Timestamp: unix timestamp
-X-Mautic-Meta-Signature: sha256=hex(HMAC-SHA256(timestamp + "." + exact JSON body, secret))
-```
-
-The same connection can read historical evidence from the configured HTTPS source. In the supplied landing backend the endpoint is `GET /api/internal/mautic/whatsapp-consents`; it signs `timestamp + "\n" + RFC3986 query string`. Both directions have a five-minute replay window and never log the secret.
-
-Run these workers every minute:
-
-```bash
-php bin/console mautic:meta:consent:process --limit=100 --env=prod
-php bin/console mautic:meta:consent-sync:process --env=prod
-```
-
-Historical backfill is dry-run by default and requires persisted source/version filters:
-
-```bash
-php artisan mautic:whatsapp-consent:backfill --source=lp_football --consent-version=football_weekly_report_v1
-php artisan mautic:whatsapp-consent:backfill --source=lp_football --consent-version=football_weekly_report_v1 --checkpoint=0 --confirm
-```
-
-For trusted API/Waitlist synchronization, configure **Waitlist/API phone region** on the WhatsApp asset independently from the asset's own region. Brazilian imports may also enable the conservative legacy-mobile conversion, which only adds the ninth digit to a DDD plus eight-digit mobile candidate; short, ambiguous, fixed-line, and otherwise invalid values remain rejected for review.
+Inbound "stop" / opt-out keywords still mark the Meta identity as opted out **and** add DNC `whatsapp`. There is no separate per-number opt-in table or landing-consent sync. `require_opt_in` on WhatsApp assets is gone.
 
 ## Omnichannel webhook adapters
 

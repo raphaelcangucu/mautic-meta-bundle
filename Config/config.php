@@ -8,7 +8,6 @@ use MauticPlugin\MauticMetaBundle\Controller\ConnectionController;
 use MauticPlugin\MauticMetaBundle\Controller\ConversationController;
 use MauticPlugin\MauticMetaBundle\Controller\DashboardController;
 use MauticPlugin\MauticMetaBundle\Controller\IdentityController;
-use MauticPlugin\MauticMetaBundle\Controller\LandingConsentController;
 use MauticPlugin\MauticMetaBundle\Controller\OperationsController;
 use MauticPlugin\MauticMetaBundle\Controller\TemplateController;
 use MauticPlugin\MauticMetaBundle\Controller\WebhookController;
@@ -16,7 +15,7 @@ use MauticPlugin\MauticMetaBundle\Controller\WebhookController;
 return [
     'name'        => 'Mautic Meta Integration',
     'description' => 'Multi-account WhatsApp and Instagram integration using the official Meta Graph API.',
-    'version'     => '0.13.0',
+    'version'     => '0.14.0',
     'author'      => 'Raphael Cangucu',
     'routes'      => [
         'main' => [
@@ -39,10 +38,6 @@ return [
             'mautic_meta_identity_update' => ['path' => '/meta/identities/{identityId}', 'controller' => IdentityController::class.'::update', 'method' => 'POST'],
             'mautic_meta_identity_remove' => ['path' => '/meta/identities/{identityId}/remove', 'controller' => IdentityController::class.'::remove', 'method' => 'POST'],
             'mautic_meta_identity_remove_batch' => ['path' => '/meta/identities/remove-batch', 'controller' => IdentityController::class.'::removeBatch', 'method' => 'POST'],
-            'mautic_meta_consent_sync_preview' => ['path' => '/meta/identities/consent-sync/preview', 'controller' => IdentityController::class.'::previewSync', 'method' => 'POST'],
-            'mautic_meta_consent_sync_start' => ['path' => '/meta/identities/consent-sync/start', 'controller' => IdentityController::class.'::startSync', 'method' => 'POST'],
-            'mautic_meta_consent_sync_cancel' => ['path' => '/meta/identities/consent-sync/{runId}/cancel', 'controller' => IdentityController::class.'::cancelSync', 'method' => 'POST'],
-            'mautic_meta_consent_sync_rejections' => ['path' => '/meta/identities/consent-sync/{runId}/rejections', 'controller' => IdentityController::class.'::rejections', 'method' => 'GET'],
             'mautic_meta_operations' => ['path' => '/meta/operations', 'controller' => OperationsController::class.'::index'],
             'mautic_meta_conversations' => ['path' => '/meta/inbox', 'controller' => ConversationController::class.'::index', 'defaults' => ['conversationId' => null]],
             'mautic_meta_conversation_view' => ['path' => '/meta/inbox/{conversationId}', 'controller' => ConversationController::class.'::index', 'method' => 'GET'],
@@ -56,7 +51,6 @@ return [
         'public' => [
             'mautic_meta_webhook' => ['path' => '/meta/webhook/{connectionId}', 'controller' => WebhookController::class.'::handle', 'method' => ['GET', 'POST']],
             'mautic_meta_adapter_reply' => ['path' => '/meta/adapters/{connectionId}/{adapterName}/messages', 'controller' => AdapterReplyController::class.'::reply', 'method' => 'POST'],
-            'mautic_meta_landing_consent' => ['path' => '/meta/consent/landing/{connectionId}/{assetId}', 'controller' => LandingConsentController::class.'::capture', 'method' => 'POST'],
         ],
         'api' => [
             'mautic_api_meta_instagram_media_resolve' => [

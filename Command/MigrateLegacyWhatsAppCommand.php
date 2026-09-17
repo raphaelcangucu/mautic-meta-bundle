@@ -48,7 +48,7 @@ final class MigrateLegacyWhatsAppCommand extends Command
         if (!$connection instanceof MetaConnection) { $connection = $this->connections->create('Migrated WhatsApp Cloud', $appId, $legacy['app_secret'], $legacy['access_token'], $legacy['verify_token'], $legacy['graph_version']); }
         $createdAssets = 0;
         $createdAssets += $this->createAssetIfMissing($connection, AssetType::WhatsAppBusinessAccount, $legacy['business_account_id'], 'Migrated WABA', []);
-        $createdAssets += $this->createAssetIfMissing($connection, AssetType::WhatsAppPhoneNumber, $legacy['phone_number_id'], 'Migrated WhatsApp number', ['default_region' => $legacy['default_region'], 'contact_match_field' => $legacy['phone_field'], 'require_opt_in' => true]);
+        $createdAssets += $this->createAssetIfMissing($connection, AssetType::WhatsAppPhoneNumber, $legacy['phone_number_id'], 'Migrated WhatsApp number', ['default_region' => $legacy['default_region'], 'contact_match_field' => $legacy['phone_field']]);
         $output->writeln(sprintf('<info>Migration complete. Connection #%d; %d assets created.</info>', $connection->getId(), $createdAssets));
 
         return Command::SUCCESS;
@@ -82,7 +82,7 @@ final class MigrateLegacyWhatsAppCommand extends Command
     private function createAssetIfMissing(MetaConnection $connection, AssetType $type, string $externalId, string $name, array $settings): int
     {
         if ($this->assetRepository->findOneBy(['connection' => $connection, 'type' => $type->value, 'externalId' => $externalId]) instanceof MetaAsset) { return 0; }
-        $this->assets->create($connection, ['type' => $type->value, 'external_id' => $externalId, 'name' => $name, 'is_default' => true, 'default_region' => $settings['default_region'] ?? 'BR', 'contact_match_field' => $settings['contact_match_field'] ?? null, 'require_opt_in' => $settings['require_opt_in'] ?? true]);
+        $this->assets->create($connection, ['type' => $type->value, 'external_id' => $externalId, 'name' => $name, 'is_default' => true, 'default_region' => $settings['default_region'] ?? 'BR', 'contact_match_field' => $settings['contact_match_field'] ?? null]);
 
         return 1;
     }

@@ -26,8 +26,6 @@ final class ConnectionManager
         string $verifyToken,
         string $graphVersion = 'v26.0',
         string $webhookAdaptersJson = '',
-        string $consentSourceUrl = '',
-        string $consentSourceSecret = '',
     ): MetaConnection {
         foreach (['name' => $name, 'appId' => $appId, 'appSecret' => $appSecret, 'accessToken' => $accessToken, 'verifyToken' => $verifyToken] as $field => $value) {
             if ('' === trim($value)) {
@@ -48,7 +46,7 @@ final class ConnectionManager
             ->setEncryptedAccessToken($this->vault->seal($accessToken))
             ->setEncryptedVerifyToken($this->vault->seal($verifyToken))
             ->setGraphVersion($graphVersion)
-            ->setSettings($this->settings($webhookAdaptersJson, [], $consentSourceUrl, $consentSourceSecret))
+            ->setSettings($this->settings($webhookAdaptersJson, []))
             ->setStatus('pending');
         $this->entityManager->persist($connection);
         $this->entityManager->flush();
@@ -89,18 +87,6 @@ final class ConnectionManager
             $settings['webhook_adapters'] = $this->adapters((string) $data['webhook_adapters_json'], $settings['webhook_adapters']);
             $connection->setSettings($settings);
         }
-        $settings = $connection->getSettings();
-        $sourceUrl = trim((string) ($data['consent_source_url'] ?? ''));
-        if ('' !== $sourceUrl && (!filter_var($sourceUrl, FILTER_VALIDATE_URL) || 'https' !== parse_url($sourceUrl, PHP_URL_SCHEME))) {
-            throw new \InvalidArgumentException('Landing consent evidence URL must be HTTPS.');
-        }
-        $settings['consent_source_url'] = $sourceUrl;
-        $sourceSecret = trim((string) ($data['consent_source_secret'] ?? ''));
-        if ('' !== $sourceSecret) {
-            $settings['consent_source_secret'] = $this->vault->seal($sourceSecret);
-        }
-        $connection->setSettings($settings);
-
         $this->entityManager->persist($connection);
         $this->entityManager->flush();
 
@@ -154,17 +140,10 @@ final class ConnectionManager
         return $result;
     }
 
-    private function settings(string $adapters, array $existing, string $sourceUrl, string $sourceSecret): array
+    private function settings(string $adapters, array $existing): array
     {
-        $sourceUrl = trim($sourceUrl);
-        if ('' !== $sourceUrl && (!filter_var($sourceUrl, FILTER_VALIDATE_URL) || 'https' !== parse_url($sourceUrl, PHP_URL_SCHEME))) {
-            throw new \InvalidArgumentException('Landing consent evidence URL must be HTTPS.');
-        }
-
         return [
             'webhook_adapters' => $this->adapters($adapters, $existing),
-            'consent_source_url' => $sourceUrl,
-            'consent_source_secret' => '' === trim($sourceSecret) ? '' : $this->vault->seal($sourceSecret),
         ];
     }
 
