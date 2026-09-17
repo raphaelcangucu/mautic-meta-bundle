@@ -18,10 +18,10 @@ final class MetaSetupTool extends AbstractMcpTool
     ) {}
 
     /**
-     * Get a safe, contextual setup guide and current configuration status for the official Meta plugin, including connections, assets, webhooks, campaigns, queues, permissions, MCP usage, and troubleshooting. Call section=status first.
+     * Get a safe, contextual setup guide and current configuration status for the official Meta plugin, including connections, assets, webhooks, campaigns, queues, permissions, MCP usage, WhatsApp templates, and troubleshooting. Call section=status first. Use section=templates before create_template.
      */
     #[McpTool(name: 'mautic_meta_setup', annotations: new ToolAnnotations(readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false), outputSchema: \MauticPlugin\MauticMcpBundle\OutputSchemas::OBJECT)]
-    public function __invoke(#[Schema(enum: ['all', 'status', 'installation', 'meta_app', 'connections', 'assets', 'webhooks', 'campaigns', 'queue', 'permissions', 'mcp', 'troubleshooting'])] string $section = 'all', ?int $connectionId = null): array
+    public function __invoke(#[Schema(enum: ['all', 'status', 'installation', 'meta_app', 'connections', 'assets', 'webhooks', 'campaigns', 'queue', 'permissions', 'mcp', 'templates', 'troubleshooting'])] string $section = 'all', ?int $connectionId = null): array
     {
         $this->bootstrapExecution();
 

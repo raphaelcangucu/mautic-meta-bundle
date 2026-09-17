@@ -129,6 +129,6 @@ final class TemplateController extends CommonController
 
     private function exampleComponents(): string
     {
-        return "[\n  {\n    \"type\": \"BODY\",\n    \"text\": \"Olá {{1}}, sua atualização está pronta.\"\n  }\n]";
+        return "[\n  {\n    \"type\": \"BODY\",\n    \"text\": \"Olá, {{1}}! Sua atualização está pronta.\",\n    \"example\": {\n      \"body_text\": [[\"João\"]]\n    }\n  }\n]";
     }
 }

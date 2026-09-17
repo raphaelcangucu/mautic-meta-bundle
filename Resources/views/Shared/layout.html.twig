@@ -3,9 +3,11 @@
 {% block content %}
 {{ includeStylesheet('plugins/MauticMetaBundle/Assets/css/meta.css?v=20260914-operational-health1') }}
 {% set uiTranslations = {
+'mautic.meta.ui.add_a_sample_value_for_each_variable_before_submitting_to_meta_9b2d70': 'mautic.meta.ui.add_a_sample_value_for_each_variable_before_submitting_to_meta_9b2d70'|trans,
 'mautic.meta.ui.example_for_5509f0': 'mautic.meta.ui.example_for_5509f0'|trans,
 'mautic.meta.ui.invalid_json_correct_the_configuration_before_submitting_your_con_f0e78c': 'mautic.meta.ui.invalid_json_correct_the_configuration_before_submitting_your_con_f0e78c'|trans,
-'mautic.meta.ui.submit_this_content_to_meta_for_review_this_change_affects_the_te_bbdd72': 'mautic.meta.ui.submit_this_content_to_meta_for_review_this_change_affects_the_te_bbdd72'|trans
+'mautic.meta.ui.submit_this_content_to_meta_for_review_this_change_affects_the_te_bbdd72': 'mautic.meta.ui.submit_this_content_to_meta_for_review_this_change_affects_the_te_bbdd72'|trans,
+'mautic.meta.ui.whatsapp_allows_at_most_3_quick_reply_buttons_c4e1a2': 'mautic.meta.ui.whatsapp_allows_at_most_3_quick_reply_buttons_c4e1a2'|trans
 } %}
 <div class="meta-ui" data-locale="{{ app.request.locale|e('html_attr') }}" data-translations="{{ uiTranslations|json_encode|e('html_attr') }}">
 {% set currentRoute = app.request.attributes.get('_route') %}
@@ -13,5 +15,5 @@
 <nav class="meta-nav" aria-label="{{ 'mautic.meta.ui.meta_connector_91b767'|trans|e('html_attr') }}">{% for route, label in {'mautic_meta_dashboard':('mautic.meta.ui.overview_d30838'|trans),'mautic_meta_connections':('mautic.meta.ui.connections_and_accounts_414b44'|trans),'mautic_meta_templates':('mautic.meta.ui.whatsapp_templates_6b4c78'|trans),'mautic_meta_identities':('mautic.meta.ui.identities_and_contacts_8b891f'|trans),'mautic_meta_operations':('mautic.meta.ui.operations_547b9a'|trans)} %}<a href="{{ path(route) }}" class="{{ activeRoute == route ? 'selected' : '' }}">{{ label }}</a>{% endfor %}{% if app.user and app.user.isAdmin() %}<a href="{{ path('mautic_meta_provider') }}" class="{{ currentRoute == 'mautic_meta_provider' ? 'selected' : '' }}">Tech Provider</a>{% endif %}</nav>
 {% block metaBody %}{% endblock %}
 </div>
-{{ includeScript('plugins/MauticMetaBundle/Assets/js/meta.js?v=20260914-template-actions1', 'metaOnLoad', 'metaOnLoad') }}
+{{ includeScript('plugins/MauticMetaBundle/Assets/js/meta.js?v=20260917-template-format1', 'metaOnLoad', 'metaOnLoad') }}
 {% endblock %}

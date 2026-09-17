@@ -61,6 +61,7 @@ final class WhatsAppTemplateManager
     {
         $this->assertBusinessAccount($businessAccount);
         $this->validate($name, $language, $category, $components);
+        $components = (new WhatsAppTemplateComponents())->normalize($components);
         $response = $this->graph->post($businessAccount->getConnection(), $businessAccount->getExternalId().'/message_templates', [
             'name' => $name, 'language' => $language, 'category' => $category, 'components' => $components,
         ]);
@@ -84,6 +85,7 @@ final class WhatsAppTemplateManager
             throw new \InvalidArgumentException('Template must have a Meta ID before it can be updated.');
         }
         $this->validate($template->getName(), $template->getLanguage(), $category, $components);
+        $components = (new WhatsAppTemplateComponents())->normalize($components);
         $this->graph->post($template->getBusinessAccount()->getConnection(), $template->getExternalId(), ['category' => $category, 'components' => $components]);
         $template->setCategory($category)->setComponents($components)->setStatus('PENDING')->touch();
         $this->entityManager->flush();

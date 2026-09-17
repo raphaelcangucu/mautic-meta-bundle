@@ -21,6 +21,8 @@ final class ManageMetaTool extends AbstractMcpTool
 
     /**
      * Manage Meta resources. link_identity requires id=an existing Meta Identity ID; upsert_identity creates or updates by contactId + assetId + channel.
+     *
+     * create_template / update_template: send Graph-style components. A BODY with numbered options (1. / 1) / 1️⃣) or “responda com um número” is accepted; MCP converts those lines to at most 3 QUICK_REPLY buttons and injects missing {{n}} samples (first sample João) before Graph POST. Prefer real BUTTONS over asking the contact to reply with a number. Category: MARKETING (promo/re-engagement), UTILITY (requested account/order updates), AUTHENTICATION (OTP). Max 3 quick replies; extra numbered options are rejected. Do not put gambling, PIX payment asks, or betting palpites in copy. For surveys, start from Meta Template Library instead of a custom numbered quiz. Call mautic_meta_setup section=templates for the submit checklist.
      */
     #[McpTool(name: 'mautic_manage_meta', annotations: new ToolAnnotations(readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true), outputSchema: \MauticPlugin\MauticMcpBundle\OutputSchemas::OBJECT)]
     public function __invoke(#[Schema(enum: ['create_connection', 'update_connection', 'delete_connection', 'create_asset', 'update_asset', 'delete_asset', 'create_template', 'update_template', 'delete_template', 'sync_templates', 'set_consent', 'link_identity', 'upsert_identity', 'test_connection'])] string $action, ?int $id = null, #[Schema(type: 'object', additionalProperties: false, properties: [
@@ -35,8 +37,46 @@ final class ManageMetaTool extends AbstractMcpTool
         'webhook_adapters_json' => ['type' => 'string'],
         'external_id' => ['type' => 'string', 'pattern' => '^[A-Za-z0-9._:-]{1,191}$', 'description' => 'Meta asset ID as returned by Graph API; not an E.164 phone number.'], 'type' => ['type' => 'string', 'enum' => ['whatsapp_business_account', 'whatsapp_phone_number', 'instagram_account', 'facebook_page']],
         'username' => ['type' => ['string', 'null']], 'phone_number' => ['type' => ['string', 'null']], 'is_default' => ['type' => 'boolean'],
-        'businessAccountId' => ['type' => 'integer'], 'language' => ['type' => 'string'], 'category' => ['type' => 'string'],
-        'components' => ['type' => 'array', 'items' => ['type' => 'object']], 'settings' => ['type' => 'object'],
+        'businessAccountId' => ['type' => 'integer'], 'language' => ['type' => 'string'],
+        'category' => ['type' => 'string', 'enum' => ['MARKETING', 'UTILITY', 'AUTHENTICATION'], 'description' => 'create_template/update_template: MARKETING = promo/re-engagement; UTILITY = requested account/order updates; AUTHENTICATION = OTP.'],
+        'components' => [
+            'type' => 'array',
+            'description' => 'create_template/update_template Graph components. Numbered BODY menus (1. / 1) / 1️⃣ / “responda com um número”) are converted to max 3 QUICK_REPLY buttons. example.body_text is optional; missing {{n}} samples are injected (first João). Prefer BUTTONS over reply-with-a-number. Max 3 quick replies. No gambling, PIX payment asks, or betting palpites. Surveys: use Meta Template Library. Component objects may include Graph fields (type, text, example, buttons, format); extra secret keys are not accepted on data.',
+            'items' => [
+                'type' => 'object',
+                'additionalProperties' => true,
+                'properties' => [
+                    'type' => ['type' => 'string', 'description' => 'BODY, HEADER, FOOTER, or BUTTONS.'],
+                    'text' => ['type' => 'string', 'description' => 'Component text. Numbered option lines in BODY are removed and turned into QUICK_REPLY buttons.'],
+                    'format' => ['type' => 'string'],
+                    'example' => [
+                        'type' => 'object',
+                        'additionalProperties' => true,
+                        'description' => 'Optional. Omit to let MCP fill body_text samples for {{n}}.',
+                        'properties' => [
+                            'body_text' => ['type' => 'array', 'description' => 'Sample rows, e.g. [["João"]].'],
+                            'header_text' => ['type' => 'array'],
+                            'header_handle' => ['type' => 'array'],
+                        ],
+                    ],
+                    'buttons' => [
+                        'type' => 'array',
+                        'description' => 'Optional. If omitted, numbered BODY options become up to 3 QUICK_REPLY buttons.',
+                        'items' => [
+                            'type' => 'object',
+                            'additionalProperties' => true,
+                            'properties' => [
+                                'type' => ['type' => 'string'],
+                                'text' => ['type' => 'string'],
+                                'url' => ['type' => 'string'],
+                                'phone_number' => ['type' => 'string'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        'settings' => ['type' => 'object', 'additionalProperties' => true],
     ])] array $data = [], bool $confirm = false, bool $dryRun = false, ?string $idempotencyKey = null): array
     {
         $this->bootstrapExecution();

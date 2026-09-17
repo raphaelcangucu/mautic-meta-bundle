@@ -15,6 +15,7 @@ use MauticPlugin\MauticMetaBundle\Application\Contact\IdentityManager;
 use MauticPlugin\MauticMetaBundle\Application\Instagram\InstagramService;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundQueue;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\PhoneNormalizer;
+use MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppTemplateComponents;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppTemplateManager;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Domain\ConsentStatus;
@@ -435,7 +436,11 @@ final class MetaService
             throw new BadRequestHttpException('data.components must be an array.');
         }
 
-        return $components;
+        try {
+            return (new WhatsAppTemplateComponents())->normalize($components);
+        } catch (\InvalidArgumentException $exception) {
+            throw new BadRequestHttpException($exception->getMessage(), $exception);
+        }
     }
 
     private function connection(?int $id): MetaConnection

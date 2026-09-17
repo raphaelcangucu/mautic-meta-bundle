@@ -28,7 +28,7 @@ final class MetaSetupService
     public function guide(string $section = 'all', ?int $connectionId = null): array
     {
         $this->assertViewPermission();
-        $available = ['all', 'status', 'installation', 'meta_app', 'connections', 'assets', 'webhooks', 'campaigns', 'queue', 'permissions', 'mcp', 'troubleshooting'];
+        $available = ['all', 'status', 'installation', 'meta_app', 'connections', 'assets', 'webhooks', 'campaigns', 'queue', 'permissions', 'mcp', 'templates', 'troubleshooting'];
         if (!in_array($section, $available, true)) {
             throw new \InvalidArgumentException('Unsupported setup section.');
         }
@@ -36,7 +36,7 @@ final class MetaSetupService
         $sections = $this->sections($connectionId);
 
         return [
-            'plugin' => ['name' => 'Mautic Meta Bundle', 'version' => '0.10.4', 'package' => 'raphaelcangucu/mautic-meta-bundle'],
+            'plugin' => ['name' => 'Mautic Meta Bundle', 'version' => '0.14.1', 'package' => 'raphaelcangucu/mautic-meta-bundle'],
             'section' => $section,
             'availableSections' => $available,
             'status' => $this->status(),
@@ -189,12 +189,35 @@ final class MetaSetupService
                 'endpoint' => $this->route('mautic_mcp_http_endpoint'),
                 'tools' => ['mautic_meta_setup', 'mautic_read_meta', 'mautic_read_meta_api', 'mautic_send_meta_message', 'mautic_manage_meta'],
                 'workflow' => ['Call mautic_meta_setup section=status.', 'Read existing connections/assets.', 'Use dryRun for creation or changes.', 'Create/test connection and assets.', 'Read status again.', 'Use a dry-run message, then obtain user approval before real delivery.'],
+                'templates' => 'Call mautic_meta_setup section=templates before create_template. Numbered BODY menus and missing {{n}} samples are normalized before Graph POST.',
+            ],
+            'templates' => [
+                'purpose' => 'Submit WhatsApp templates through mautic_manage_meta so Meta review accepts them.',
+                'mcp' => [
+                    'create' => ['tool' => 'mautic_manage_meta', 'action' => 'create_template', 'dataRequired' => ['businessAccountId', 'name', 'language', 'category', 'components']],
+                    'update' => ['tool' => 'mautic_manage_meta', 'action' => 'update_template', 'id' => 'template ID', 'dataRequired' => ['category', 'components']],
+                    'sync' => ['tool' => 'mautic_manage_meta', 'action' => 'sync_templates', 'id' => 'WABA asset ID'],
+                    'read' => ['tool' => 'mautic_read_meta', 'resource' => 'templates'],
+                ],
+                'submit' => [
+                    'categories' => [
+                        'MARKETING' => 'Promotions, offers, and re-engagement the contact did not just request.',
+                        'UTILITY' => 'Account, order, or appointment updates the contact requested.',
+                        'AUTHENTICATION' => 'One-time codes only.',
+                    ],
+                    'components' => 'Graph-style list. A BODY with numbered options (1. / 1) / 1️⃣) or “responda com um número” is accepted. MCP converts those lines into at most 3 QUICK_REPLY buttons, strips the reply-with-a-number prompt, and fills missing {{n}} examples (first sample João).',
+                    'preferButtons' => 'Send BUTTONS with QUICK_REPLY instead of asking the contact to reply with a number. Numbered body-only payloads still work because they are rewritten before Graph POST.',
+                    'limits' => ['maxQuickReplies' => 3, 'variables' => 'Sequential {{1}}…{{n}}, not at the start or end of the body.'],
+                    'copy' => 'Do not mention gambling, PIX payment requests, or betting palpites. Meta rejects that copy.',
+                    'surveys' => 'For NPS or multi-question surveys, start from Meta Template Library in Business Manager instead of a custom numbered quiz. At most 3 quick replies are sent to Graph.',
+                ],
             ],
             'troubleshooting' => [
                 'connection_error' => ['Check token expiry, asset assignment, App Review permissions, graph_version, and System User access.', 'Run mautic_manage_meta test_connection with confirm=true.'],
                 'webhook_401' => ['Confirm X-Hub-Signature-256 and the App Secret belong to the connection in the callback URL.'],
                 'webhook_verification' => ['Confirm the exact callback URL and verify_token; do not use the App Secret as verify token.'],
                 'whatsapp_not_sent' => ['Check phone asset active/published state, recipient normalization, DNC, approved template status, and queue error.'],
+                'whatsapp_template_invalid_format' => ['Meta INVALID_FORMAT usually means a numbered reply-with-a-number menu, missing {{n}} examples, more than 3 quick replies, or a body that starts or ends with a variable.', 'Resubmit with create_template/update_template. MCP converts numbered menus and injects samples. Use at most 3 options. Prefer QUICK_REPLY buttons. Avoid gambling, PIX, and palpites copy.'],
                 'instagram_not_sent' => ['Check professional account linkage, recipient/comment ID, messaging window, permissions, and queue error.'],
                 'commands' => ['php bin/console mautic:meta:queue:process --limit=10 -vv', 'php bin/console doctrine:schema:update --dump-sql', 'php bin/console cache:clear --env=prod'],
             ],

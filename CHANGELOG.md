@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.14.1 - 2026-09-17
+
+- Normalize WhatsApp template numbered menus into at most three quick-reply buttons and inject sample values for body variables so Meta review no longer returns `INVALID_FORMAT`.
+- Accept that numbered-menu body format on `mautic_manage_meta` create/update template and document how agents should submit templates.
+
+## 0.14.0 - 2026-09-17
+
 - Drop the WhatsApp landing-consent pipeline, per-number `require_opt_in` send gate, consent-sync MCP tools, and campaign `meta.whatsapp.register_opt_in` action.
 - Keep Meta identities and map inbound opt-out to Mautic Do Not Contact on the `whatsapp` channel.
 
