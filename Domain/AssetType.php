@@ -10,11 +10,12 @@ enum AssetType: string
     case WhatsAppPhoneNumber = 'whatsapp_phone_number';
     case InstagramAccount = 'instagram_account';
     case FacebookPage = 'facebook_page';
+    case WhatsAppQrSession = 'whatsapp_qr_session';
 
     public function channel(): Channel
     {
         return match ($this) {
-            self::WhatsAppBusinessAccount, self::WhatsAppPhoneNumber => Channel::WhatsApp,
+            self::WhatsAppBusinessAccount, self::WhatsAppPhoneNumber, self::WhatsAppQrSession => Channel::WhatsApp,
             self::InstagramAccount => Channel::Instagram,
             self::FacebookPage => Channel::Facebook,
         };
