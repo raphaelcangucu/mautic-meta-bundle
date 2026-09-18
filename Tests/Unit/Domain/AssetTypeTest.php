@@ -38,4 +38,29 @@ final class AssetTypeTest extends TestCase
             self::assertInstanceOf(Channel::class, $caso->channel());
         }
     }
+
+    #[DataProvider('graphAssets')]
+    public function testKnowsWhichTypesTheGraphApiCanAnswerFor(AssetType $type, bool $isGraphAsset): void
+    {
+        self::assertSame($isGraphAsset, $type->isGraphAsset());
+    }
+
+    public static function graphAssets(): iterable
+    {
+        yield [AssetType::WhatsAppBusinessAccount, true];
+        yield [AssetType::WhatsAppPhoneNumber, true];
+        yield [AssetType::InstagramAccount, true];
+        yield [AssetType::FacebookPage, true];
+        yield [AssetType::WhatsAppQrSession, false];
+    }
+
+    public function testEveryCaseAnswersWhetherItLivesOnTheGraph(): void
+    {
+        // Quem consome esta pergunta filtra por ela em telas de producao. Deixar a resposta
+        // aqui, exaustiva, obriga quem acrescentar um canal a decidir neste arquivo -- e nao
+        // a descobrir em runtime que uma lista de tipos espalhada por ai ficou desatualizada.
+        foreach (AssetType::cases() as $caso) {
+            self::assertIsBool($caso->isGraphAsset());
+        }
+    }
 }
