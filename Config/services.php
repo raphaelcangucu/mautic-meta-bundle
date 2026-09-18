@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\ServiceRepositoryCompilerPass;
 use Mautic\CoreBundle\DependencyInjection\MauticCoreExtension;
+use MauticPlugin\MauticMetaBundle\Infrastructure\GraphTransport;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClient;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
+use MauticPlugin\MauticMetaBundle\Infrastructure\WhatsAppTransportInterface;
 use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 use MauticPlugin\MauticMetaBundle\Application\Support\NoopInboxIntegration;
 use MauticPlugin\MauticMetaBundle\Security\CredentialVault;
@@ -37,4 +39,7 @@ return function (ContainerConfigurator $configurator): void {
     $services->set(WebhookSignatureVerifier::class);
     $services->alias(MetaGraphClientInterface::class, MetaGraphClient::class);
     $services->alias(InboxIntegrationInterface::class, NoopInboxIntegration::class);
+    // O WhatsAppSender e autowired pela classe; sem este alias o argumento de
+    // transporte fica sem servico e o container quebra so em runtime.
+    $services->alias(WhatsAppTransportInterface::class, GraphTransport::class);
 };

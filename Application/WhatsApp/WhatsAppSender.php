@@ -16,12 +16,12 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplate;
 use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplateRepository;
-use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
+use MauticPlugin\MauticMetaBundle\Infrastructure\WhatsAppTransportInterface;
 
 final class WhatsAppSender
 {
     public function __construct(
-        private MetaGraphClientInterface $graph,
+        private WhatsAppTransportInterface $transport,
         private EntityManagerInterface $entityManager,
         private PhoneNormalizer $phones,
         private IdentityManager $identities,
@@ -119,7 +119,7 @@ final class WhatsAppSender
         $this->entityManager->persist($log);
         $this->entityManager->flush();
         try {
-            $send = fn (): array => $this->graph->post($asset->getConnection(), $asset->getExternalId().'/messages', $payload);
+            $send = fn (): array => $this->transport->post($asset, $payload);
             $response = $human || $alreadyAutomationGuarded || null === $this->inboxIntegration ? $send() : $this->inboxIntegration->runAutomationGuarded($asset, $recipient, $send);
             $messageId = trim((string) ($response['messages'][0]['id'] ?? ''));
             $messageStatus = (string) ($response['messages'][0]['message_status'] ?? 'accepted');

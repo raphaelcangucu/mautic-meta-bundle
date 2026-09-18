@@ -16,6 +16,7 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConnection;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
+use MauticPlugin\MauticMetaBundle\Infrastructure\GraphTransport;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -35,7 +36,7 @@ final class WhatsAppSenderTest extends TestCase
         $identities = $this->createMock(IdentityManager::class);
         $identities->expects(self::once())->method('assertCanSend');
 
-        $result = (new WhatsAppSender($graph, $entityManager, new PhoneNormalizer(), $identities))->sendText($this->asset(), '(11) 99999-9999', 'Hello');
+        $result = (new WhatsAppSender(new GraphTransport($graph), $entityManager, new PhoneNormalizer(), $identities))->sendText($this->asset(), '(11) 99999-9999', 'Hello');
 
         self::assertSame('wamid.123', $result->messageId);
         self::assertSame('accepted', $result->status);
@@ -70,7 +71,7 @@ final class WhatsAppSenderTest extends TestCase
             ['messages' => [['id' => 'wamid.first']]],
             ['messages' => [['id' => 'wamid.second']]],
         );
-        $sender = new WhatsAppSender($graph, $entityManager, new PhoneNormalizer(), $identities, new OutboundPolicy($database));
+        $sender = new WhatsAppSender(new GraphTransport($graph), $entityManager, new PhoneNormalizer(), $identities, new OutboundPolicy($database));
 
         self::assertSame('wamid.first', $sender->sendText($asset, '5511999999999', 'Primeira', human: true)->messageId);
         self::assertSame('wamid.second', $sender->sendText($asset, '5511999999999', 'Segunda', human: true)->messageId);
@@ -99,7 +100,7 @@ final class WhatsAppSenderTest extends TestCase
             'phone-123/messages',
             self::callback(static fn (array $payload): bool => $canonicalWaId === $payload['to']),
         )->willReturn(['messages' => [['id' => 'wamid.ai']]]);
-        $sender = new WhatsAppSender($graph, $entityManager, new PhoneNormalizer(), $identities, new OutboundPolicy($database));
+        $sender = new WhatsAppSender(new GraphTransport($graph), $entityManager, new PhoneNormalizer(), $identities, new OutboundPolicy($database));
 
         $result = $sender->sendText($asset, $canonicalWaId, 'Resposta da IA', alreadyAutomationGuarded: true);
 
@@ -126,7 +127,7 @@ final class WhatsAppSenderTest extends TestCase
         $identities = $this->createMock(IdentityManager::class);
         $identities->expects(self::once())->method('assertCanSend');
 
-        $result = (new WhatsAppSender($graph, $entityManager, new PhoneNormalizer(), $identities))->sendMedia(
+        $result = (new WhatsAppSender(new GraphTransport($graph), $entityManager, new PhoneNormalizer(), $identities))->sendMedia(
             $this->asset(),
             '5511999999999',
             'image',
@@ -145,7 +146,7 @@ final class WhatsAppSenderTest extends TestCase
             self::callback(static fn (array $payload): bool => 'interactive' === $payload['type'] && 'button' === $payload['interactive']['type']),
         )->willReturn(['messages' => [['id' => 'wamid.interactive']]]);
 
-        $result = (new WhatsAppSender($graph, $this->createMock(EntityManagerInterface::class), new PhoneNormalizer(), $this->createMock(IdentityManager::class)))->sendInteractive(
+        $result = (new WhatsAppSender(new GraphTransport($graph), $this->createMock(EntityManagerInterface::class), new PhoneNormalizer(), $this->createMock(IdentityManager::class)))->sendInteractive(
             $this->asset(),
             '5511999999999',
             ['type' => 'button', 'body' => ['text' => 'Choose'], 'action' => ['buttons' => []]],
@@ -189,7 +190,7 @@ final class WhatsAppSenderTest extends TestCase
             {
             }
         };
-        $sender = new WhatsAppSender($graph, $this->createMock(EntityManagerInterface::class), new PhoneNormalizer(), $this->createMock(IdentityManager::class), inboxIntegration: $integration);
+        $sender = new WhatsAppSender(new GraphTransport($graph), $this->createMock(EntityManagerInterface::class), new PhoneNormalizer(), $this->createMock(IdentityManager::class), inboxIntegration: $integration);
 
         $this->expectException(\DomainException::class);
         $sender->sendText($this->asset(), '5511999999999', 'Não enviar');
@@ -210,7 +211,7 @@ final class WhatsAppSenderTest extends TestCase
     private function sender(): WhatsAppSender
     {
         return new WhatsAppSender(
-            $this->createMock(MetaGraphClientInterface::class),
+            new GraphTransport($this->createMock(MetaGraphClientInterface::class)),
             $this->createMock(EntityManagerInterface::class),
             new PhoneNormalizer(),
             $this->createMock(IdentityManager::class),
