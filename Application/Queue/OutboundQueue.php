@@ -13,6 +13,7 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConversation;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
+use MauticPlugin\MauticMetaBundle\Application\Exception\ChannelTemporarilyUnavailable;
 use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 
 final class OutboundQueue
@@ -183,10 +184,14 @@ final class OutboundQueue
             $error = $exception instanceof MetaGraphApiException ? $exception->details() : ['message' => $exception->getMessage()];
             $job->setLastError(json_encode($error, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))->setLockedAt(null);
             $permanentGraphFailure = $exception instanceof MetaGraphApiException && !$exception->isRetryable();
+            // Reconhecido antes dos bracos herdados porque a taxonomia abaixo e do Graph:
+            // sem esta excecao, um canal que so caiu seria lido como desfecho desconhecido
+            // e o atendente veria "nao saiu" em vez de "na fila".
+            $temporaryChannelFailure = $exception instanceof ChannelTemporarilyUnavailable;
             if ($exception instanceof \DomainException && str_contains($exception->getMessage(), 'Automation paused')) {
                 $job->setStatus('blocked');
                 $outcome = 'failed';
-            } elseif (!$exception instanceof MetaGraphApiException && !$exception instanceof \InvalidArgumentException && !$exception instanceof \DomainException) {
+            } elseif (!$temporaryChannelFailure && !$exception instanceof MetaGraphApiException && !$exception instanceof \InvalidArgumentException && !$exception instanceof \DomainException) {
                 // A transport interruption can happen after Meta accepted the request. Never retry blindly.
                 $job->setStatus('uncertain');
                 $outcome = 'failed';

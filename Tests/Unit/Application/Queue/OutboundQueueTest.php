@@ -7,6 +7,7 @@ namespace MauticPlugin\MauticMetaBundle\Tests\Unit\Application\Queue;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Result;
 use Doctrine\ORM\EntityManagerInterface;
+use MauticPlugin\MauticMetaBundle\Application\Exception\ChannelTemporarilyUnavailable;
 use MauticPlugin\MauticMetaBundle\Application\Queue\ImmediateOutboundDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundOperationExecutor;
 use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundQueue;
@@ -70,6 +71,35 @@ final class OutboundQueueTest extends TestCase
 
         self::assertSame(1, $result['failed']);
         self::assertSame('failed', $job->getStatus());
+    }
+
+    public function testATemporaryChannelFailureIsRetried(): void
+    {
+        $job = (new MetaOutboundJob(8))->setOperation('whatsapp_text')->setMaxAttempts(5);
+        [$queue, $executor] = $this->queue([$job]);
+        $executor->method('execute')->willThrowException(new ChannelTemporarilyUnavailable('QR session is disconnected'));
+
+        $result = $queue->work();
+
+        self::assertSame(1, $result['retried']);
+        self::assertSame(0, $result['failed']);
+        self::assertSame('retry', $job->getStatus());
+        self::assertInstanceOf(\DateTimeInterface::class, $job->getAvailableAt());
+    }
+
+    public function testItDoesNotBecomeUncertain(): void
+    {
+        // "uncertain" nunca eh retentado e a caixa de atendimento mostra ao atendente
+        // como "nao saiu"; uma sessao fora do ar nao pode ser confundida com isso.
+        $job = (new MetaOutboundJob(9))->setOperation('whatsapp_text')->setMaxAttempts(5);
+        [$queue, $executor] = $this->queue([$job]);
+        $executor->method('execute')->willThrowException(new ChannelTemporarilyUnavailable('QR session is disconnected'));
+
+        $queue->work();
+
+        self::assertNotSame('uncertain', $job->getStatus());
+        self::assertNotSame('failed', $job->getStatus());
+        self::assertNotSame('blocked', $job->getStatus());
     }
 
     public function testStalledCommentPrivateReplyIsHeldForReviewWithoutResending(): void
