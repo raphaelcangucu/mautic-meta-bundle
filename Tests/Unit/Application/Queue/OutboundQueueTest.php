@@ -16,6 +16,7 @@ use MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSendResult;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
+use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
 use PHPUnit\Framework\TestCase;
 
 final class OutboundQueueTest extends TestCase
@@ -100,6 +101,31 @@ final class OutboundQueueTest extends TestCase
         self::assertNotSame('uncertain', $job->getStatus());
         self::assertNotSame('failed', $job->getStatus());
         self::assertNotSame('blocked', $job->getStatus());
+    }
+
+    public function testATemporaryFailureBacksOffBeyondAnHour(): void
+    {
+        // Uma sessao de QR pode ficar fora do ar por horas seguidas: com o teto de uma
+        // hora o job continuaria acordando de hora em hora e gastando tentativas antes
+        // de o numero voltar.
+        $failure = new ChannelTemporarilyUnavailable('QR session is disconnected');
+
+        $this->assertRetryDelay(30, $failure, 0);
+        $this->assertRetryDelay(240, $failure, 3);
+        $this->assertRetryDelay(7200, $failure, 8);
+        $this->assertRetryDelay(7200, $failure, 12);
+    }
+
+    public function testTheGraphBackoffIsUnchanged(): void
+    {
+        // Os tres canais oficiais reagendam por este calculo em producao; os valores
+        // abaixo sao os de antes do teto novo e nenhum deles pode se mexer.
+        $failure = new MetaGraphApiException('POST', '/v21.0/1/messages', 500, ['message' => 'Temporary server error']);
+
+        $this->assertRetryDelay(30, $failure, 0);
+        $this->assertRetryDelay(240, $failure, 3);
+        $this->assertRetryDelay(3600, $failure, 8);
+        $this->assertRetryDelay(3600, $failure, 12);
     }
 
     public function testStalledCommentPrivateReplyIsHeldForReviewWithoutResending(): void
@@ -188,6 +214,29 @@ final class OutboundQueueTest extends TestCase
         self::assertFalse($dispatcher->dispatch($automation));
         self::assertSame('pending', $template->getStatus());
         self::assertSame('pending', $automation->getStatus());
+    }
+
+    /**
+     * Reagenda um job que ja falhou $attempts vezes e confere a espera concedida.
+     *
+     * A folga de um segundo cobre apenas a virada do relogio entre a marca tomada aqui
+     * e o instante em que a fila calcula a espera.
+     */
+    private function assertRetryDelay(int $expectedSeconds, \Throwable $failure, int $attempts): void
+    {
+        $job = (new MetaOutboundJob())->setOperation('whatsapp_text')->setAttempts($attempts)->setMaxAttempts(50);
+        [$queue, $executor] = $this->queue([$job]);
+        $executor->method('execute')->willThrowException($failure);
+        $before = new \DateTimeImmutable();
+
+        $result = $queue->work();
+
+        self::assertSame(1, $result['retried']);
+        self::assertSame('retry', $job->getStatus());
+        self::assertInstanceOf(\DateTimeInterface::class, $job->getAvailableAt());
+        $granted = $job->getAvailableAt()->getTimestamp() - $before->getTimestamp();
+        self::assertGreaterThanOrEqual($expectedSeconds, $granted);
+        self::assertLessThanOrEqual($expectedSeconds + 1, $granted);
     }
 
     /** @param list<MetaOutboundJob> $dueJobs
