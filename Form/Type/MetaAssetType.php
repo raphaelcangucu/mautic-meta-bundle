@@ -26,6 +26,7 @@ final class MetaAssetType extends AbstractType
                 'mautic.meta.ui.whatsapp_phone_number' => AssetType::WhatsAppPhoneNumber->value,
                 'mautic.meta.ui.instagram_professional_account' => AssetType::InstagramAccount->value,
                 'mautic.meta.ui.facebook_page' => AssetType::FacebookPage->value,
+                'mautic.meta.ui.whatsapp_qr_session' => AssetType::WhatsAppQrSession->value,
             ]])
             ->add('external_id', TextType::class, ['label' => 'mautic.meta.ui.meta_account_id_0c0d93', 'constraints' => [new NotBlank()]])
             ->add('username', TextType::class, ['required' => false, 'label' => 'mautic.meta.ui.instagram_username_9fb7e4'])
