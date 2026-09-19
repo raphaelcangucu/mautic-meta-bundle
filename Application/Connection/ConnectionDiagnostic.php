@@ -87,6 +87,21 @@ final class ConnectionDiagnostic
     }
 
     /**
+     * Este diagnostico so sabe perguntar ao Graph: escopos de permissao da Meta e nos
+     * consultaveis. Assets de outros canais nao tem nem um nem outro, entao ficam de fora
+     * dos dois lacos em vez de ganharem um braco que afirmaria um parentesco inexistente.
+     *
+     * @return list<MetaAsset>
+     */
+    private function graphAssets(MetaConnection $connection): array
+    {
+        return array_values(array_filter(
+            $connection->getAssets()->toArray(),
+            static fn (MetaAsset $asset): bool => $asset->getType()->isGraphAsset(),
+        ));
+    }
+
+    /**
      * @return array{required: list<string>, granted: list<string>, missing: list<string>}
      */
     private function permissions(MetaConnection $connection): array
@@ -103,7 +118,7 @@ final class ConnectionDiagnostic
         $granted = array_values(array_unique(array_filter($granted)));
 
         $required = [];
-        foreach ($connection->getAssets() as $asset) {
+        foreach ($this->graphAssets($connection) as $asset) {
             $required = array_merge($required, match ($asset->getType()) {
                 AssetType::InstagramAccount, AssetType::FacebookPage => array_slice(self::REQUIRED_PERMISSIONS, 0, 4),
                 AssetType::WhatsAppBusinessAccount, AssetType::WhatsAppPhoneNumber => array_slice(self::REQUIRED_PERMISSIONS, 4),
@@ -127,7 +142,7 @@ final class ConnectionDiagnostic
         $missing = [];
         $configuredCount = 0;
 
-        foreach ($connection->getAssets() as $asset) {
+        foreach ($this->graphAssets($connection) as $asset) {
             ++$configuredCount;
 
             try {

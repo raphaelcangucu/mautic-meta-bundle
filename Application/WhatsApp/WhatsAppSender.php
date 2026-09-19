@@ -16,12 +16,12 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplate;
 use MauticPlugin\MauticMetaBundle\Entity\WhatsAppTemplateRepository;
-use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
+use MauticPlugin\MauticMetaBundle\Infrastructure\TransportResolver;
 
 final class WhatsAppSender
 {
     public function __construct(
-        private MetaGraphClientInterface $graph,
+        private TransportResolver $transports,
         private EntityManagerInterface $entityManager,
         private PhoneNormalizer $phones,
         private IdentityManager $identities,
@@ -93,8 +93,8 @@ final class WhatsAppSender
         if (!$asset->getConnection()->isPublished() || 'active' !== $asset->getConnection()->getStatus()) {
             throw new \DomainException('Meta connection is paused or requires authorization.');
         }
-        if (AssetType::WhatsAppPhoneNumber !== $asset->getType() || !$asset->isPublished() || 'active' !== $asset->getStatus()) {
-            throw new \InvalidArgumentException('A published, active WhatsApp phone-number asset is required.');
+        if (!in_array($asset->getType(), [AssetType::WhatsAppPhoneNumber, AssetType::WhatsAppQrSession], true) || !$asset->isPublished() || 'active' !== $asset->getStatus()) {
+            throw new \InvalidArgumentException('A published, active WhatsApp phone-number or QR session asset is required.');
         }
         $region = (string) ($asset->getSettings()['default_region'] ?? 'BR');
         $serviceWindowActor = $human || $alreadyAutomationGuarded;
@@ -108,6 +108,9 @@ final class WhatsAppSender
         }
         $this->identities->assertCanSend($asset, $recipient, $contact, $serviceReply);
         $this->outboundPolicy?->assertAllowed($asset, 'whatsapp', $recipient, $type, $contact?->getId(), $serviceReply);
+        // Resolver antes de registrar o log: falta de transporte e erro de
+        // configuracao, nao um envio que o canal recusou.
+        $transport = $this->transports->forAsset($asset);
         $payload = ['messaging_product' => 'whatsapp', 'recipient_type' => 'individual', 'to' => $recipient, 'type' => $type] + $content;
         $log = (new MetaMessage())
             ->setAsset($asset)
@@ -119,7 +122,7 @@ final class WhatsAppSender
         $this->entityManager->persist($log);
         $this->entityManager->flush();
         try {
-            $send = fn (): array => $this->graph->post($asset->getConnection(), $asset->getExternalId().'/messages', $payload);
+            $send = fn (): array => $transport->post($asset, $payload);
             $response = $human || $alreadyAutomationGuarded || null === $this->inboxIntegration ? $send() : $this->inboxIntegration->runAutomationGuarded($asset, $recipient, $send);
             $messageId = trim((string) ($response['messages'][0]['id'] ?? ''));
             $messageStatus = (string) ($response['messages'][0]['message_status'] ?? 'accepted');

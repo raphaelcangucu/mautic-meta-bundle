@@ -57,4 +57,64 @@ final class ConversationManagerTest extends TestCase
         self::assertSame($legacy, $message->getConversation());
         self::assertSame('5531984326486', $recorded->getRecipient());
     }
+
+    public function testAPhoneRecipientIsStillCanonicalized(): void
+    {
+        // Os tres canais oficiais dependem desta linha: o numero chega formatado como o
+        // Meta entrega e a conversa guarda a forma canonica, senao o mesmo cliente abre
+        // uma conversa por formato de numero.
+        $asset = $this->asset(AssetType::WhatsAppPhoneNumber);
+        $message = (new MetaMessage())
+            ->setAsset($asset)
+            ->setChannel('whatsapp')
+            ->setDirection('inbound')
+            ->setMessageType('text')
+            ->setRecipient('+55 (31) 98432-6486')
+            ->setPayload(['text' => ['body' => 'Oi']]);
+
+        $repository = $this->createMock(MetaConversationRepository::class);
+        $repository->method('findOneBy')->willReturn(null);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+
+        $recorded = (new ConversationManager($repository, $entityManager, new PhoneNormalizer()))->record($message);
+
+        self::assertSame('5531984326486', $recorded->getRecipient());
+    }
+
+    public function testAMarkedRecipientCrossesRecordUntouched(): void
+    {
+        // O WhatsApp por QR as vezes so entrega um identificador opaco, e quem o recebe o
+        // marca com prefixo justamente para que ninguem o confunda com telefone. Canonizar
+        // aqui deixaria os digitos que sobram passando por numero -- um destinatario
+        // inventado, que aceita resposta e nunca entrega. Nem a busca por equivalentes pode
+        // acontecer: ela procuraria a conversa de um telefone que nao e deste remetente.
+        $asset = $this->asset(AssetType::WhatsAppQrSession);
+        $message = (new MetaMessage())
+            ->setAsset($asset)
+            ->setChannel('whatsapp')
+            ->setDirection('inbound')
+            ->setMessageType('text')
+            ->setRecipient('jid:220518514233310@lid')
+            ->setPayload(['text' => ['body' => 'Oi']]);
+
+        $repository = $this->createMock(MetaConversationRepository::class);
+        $repository->expects(self::once())->method('findOneBy')->willReturn(null);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+
+        $recorded = (new ConversationManager($repository, $entityManager, new PhoneNormalizer()))->record($message);
+
+        self::assertSame('jid:220518514233310@lid', $recorded->getRecipient());
+    }
+
+    private function asset(AssetType $type): MetaAsset
+    {
+        return (new MetaAsset())
+            ->setConnection((new MetaConnection())->setName('Primary'))
+            ->setExternalId('phone-123')
+            ->setName('Support')
+            ->setType($type)
+            ->setStatus('active')
+            ->setIsPublished(true)
+            ->setSettings(['default_region' => 'BR']);
+    }
 }
