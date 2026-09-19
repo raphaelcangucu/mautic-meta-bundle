@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Mautic\LeadBundle\Entity\Lead;
 use Mautic\LeadBundle\Model\LeadModel;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
+use MauticPlugin\MauticMetaBundle\Domain\UnresolvedRecipient;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 
 final class ContactMatcher
@@ -42,7 +43,17 @@ final class ContactMatcher
             return 1 === count($contacts) && $contacts[0] instanceof Lead ? $contacts[0] : null;
         }
 
-        if (AssetType::WhatsAppPhoneNumber !== $asset->getType()) {
+        // Os dois tipos cujo identificador de remetente E o telefone do cliente. O id de
+        // WABA fica de fora de proposito: tambem e feito de digitos, e nao e numero de
+        // ninguem. Nao se trata de qual canal e oficial -- e a mesma pessoa, o mesmo
+        // numero, e uma conversa sem contato ligado nao tem historico, campos nem campanha.
+        if (!in_array($asset->getType(), [AssetType::WhatsAppPhoneNumber, AssetType::WhatsAppQrSession], true)) {
+            return null;
+        }
+
+        // Um destinatario marcado chegou sem telefone. Os digitos que sobram dele parecem
+        // numero e casariam contato por sufixo: seria o contato errado, calado.
+        if (UnresolvedRecipient::marks($externalId)) {
             return null;
         }
 
