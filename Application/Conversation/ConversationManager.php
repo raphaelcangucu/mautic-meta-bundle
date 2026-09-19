@@ -10,6 +10,7 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaConversationRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\PhoneNormalizer;
+use MauticPlugin\MauticMetaBundle\Domain\UnresolvedRecipient;
 
 final class ConversationManager
 {
@@ -32,7 +33,10 @@ final class ConversationManager
             'channel'   => $message->getChannel(),
             'recipient' => $conversationRecipient,
         ]);
-        if (!$conversation instanceof MetaConversation && 'whatsapp' === $message->getChannel()) {
+        // Destinatario marcado nao e telefone: tudo o que segue trata destinatario de
+        // whatsapp como numero, e um identificador opaco so sobreviveria a isso por acaso.
+        $carriesPhone = !UnresolvedRecipient::marks($conversationRecipient);
+        if (!$conversation instanceof MetaConversation && 'whatsapp' === $message->getChannel() && $carriesPhone) {
             $region = (string) ($message->getAsset()->getSettings()['default_region'] ?? 'BR');
             foreach ($this->phones->equivalentRecipients($conversationRecipient, $region) as $equivalentRecipient) {
                 if ($equivalentRecipient === $conversationRecipient) {
@@ -71,7 +75,7 @@ final class ConversationManager
         if (null !== $message->getContact()) {
             $conversation->setContact($message->getContact());
         }
-        if ('whatsapp' === $message->getChannel()) {
+        if ('whatsapp' === $message->getChannel() && $carriesPhone) {
             $region = (string) ($message->getAsset()->getSettings()['default_region'] ?? 'BR');
             $canonicalRecipient = $this->phones->equivalentRecipients($conversationRecipient, $region)[0] ?? $conversationRecipient;
             if ($conversation->getRecipient() !== $canonicalRecipient) {
