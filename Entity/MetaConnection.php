@@ -239,4 +239,25 @@ class MetaConnection extends FormEntity
 
         return $this;
     }
+
+    /**
+     * A tela de Conexoes existe para credenciais do Graph: app id, segredo e tokens. Uma
+     * conexao que so carrega assets de fora do Graph nao tem nada disso preenchido, e o botao
+     * de testar acesso nao teria o que testar. Sem assets a conexao continua sendo do Graph --
+     * e por essa mesma tela que ela vai receber os primeiros.
+     */
+    public function isOnGraph(): bool
+    {
+        if ($this->assets->isEmpty()) {
+            return true;
+        }
+
+        foreach ($this->assets as $asset) {
+            if ($asset->getType()->isGraphAsset()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

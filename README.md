@@ -2,6 +2,12 @@
 
 Multi-account integration between Mautic 7 and the official Meta Graph API. WhatsApp, Instagram and Facebook/Messenger are independent channels backed by shared connections, encrypted credentials, assets, webhooks, queues, logs, and permissions. Version 0.13.0 also provides an internal Tech Provider onboarding console for authorized customer WABAs.
 
+## Optional WhatsApp QR transport
+
+Version 0.14.2 adds `WhatsAppTransportInterface`, the tagged `TransportResolver` and the `whatsapp_qr_session` asset type. Install [MauticWhatsQrBundle 0.2.1](https://github.com/raphaelcangucu/mautic-whatsqr-bundle) and Inbox 1.4.1 for QR pairing and human support. The Go service owns the WhatsApp session; this connector retains contacts, DNC, message logs, idempotency and the outbound queue. No QR session is sent to Graph for diagnostics or delivery.
+
+QR sessions support private inbound messages and outbound text. They do not use official WABA templates or the Cloud API service window. Other send protections remain in force. Temporary disconnects may be retried within the configured attempt limit; uncertain deliveries are held for review. No schema change is required by this release.
+
 ## Implemented
 
 - Multiple Meta app connections.

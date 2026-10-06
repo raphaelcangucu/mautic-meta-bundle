@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.14.2 - 2026-10-06
+
+- Add a tagged WhatsApp transport boundary and QR-session asset type for the optional WhatsQR plugin.
+- Preserve opaque WhatsApp identifiers without treating them as phone numbers; keep contact and conversation matching consistent.
+- Retry temporary channel failures in the existing outbound queue while preserving ordering, DNC and anti-spam controls.
+- Keep Cloud API templates and service-window rules scoped to official assets; do not diagnose QR sessions through Graph.
+
 ## 0.14.1 - 2026-09-17
 
 - Normalize WhatsApp template numbered menus into at most three quick-reply buttons and inject sample values for body variables so Meta review no longer returns `INVALID_FORMAT`.

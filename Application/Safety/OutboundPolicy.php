@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MauticPlugin\MauticMetaBundle\Application\Safety;
 
 use Doctrine\DBAL\Connection;
+use MauticPlugin\MauticMetaBundle\Domain\AssetType;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
 
 /**
@@ -56,6 +57,16 @@ final class OutboundPolicy
             : null;
         if ($this->countSince($assetId, $channel, $recipient, new \DateTimeImmutable(sprintf('-%d seconds', $cooldown)), $cooldownMessageType) > 0) {
             throw new \DomainException(sprintf('Local anti-spam cooldown active for this recipient (%d seconds).', $cooldown));
+        }
+
+        // A janela de 24h e regra do WABA, e so os assets do WABA respondem por ela. Num
+        // canal por QR Code nao existe janela de atendimento, e a saida que a mensagem
+        // oferece -- um template aprovado -- tambem nao existe la: aplicar isso fecharia o
+        // canal para comecar conversa e para responder depois de um dia parado, com uma
+        // instrucao que ninguem consegue seguir. Os limites de anti-spam acima continuam
+        // valendo, que e onde o risco real de um numero nao homologado mora.
+        if (AssetType::WhatsAppQrSession === $asset->getType()) {
+            return;
         }
 
         if ('whatsapp' === $channel && 'template' !== $messageType && true === ($settings['enforce_customer_service_window'] ?? true)) {

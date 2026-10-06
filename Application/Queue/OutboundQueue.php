@@ -13,10 +13,25 @@ use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
 use MauticPlugin\MauticMetaBundle\Entity\MetaConversation;
 use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
+use MauticPlugin\MauticMetaBundle\Application\Exception\ChannelTemporarilyUnavailable;
 use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 
 final class OutboundQueue
 {
+    /**
+     * Teto do Graph. Continua valendo para os tres canais oficiais: uma falha de
+     * plataforma que passe de uma hora deixou de ser um soluco e vira caso de suporte.
+     */
+    private const GRAPH_BACKOFF_CAP_SECONDS = 3600;
+
+    /**
+     * Teto de um canal que caiu e volta sozinho. Uma resposta parada expira em duas
+     * horas e vira "nao saiu" com o motivo escrito, entao esperar mais que a janela em
+     * que ela ainda pode sair nao serve para nada; duas horas ainda deixam o job ser
+     * tentado umas oito vezes dentro dela.
+     */
+    private const TEMPORARY_CHANNEL_BACKOFF_CAP_SECONDS = 7200;
+
     public function __construct(
         private MetaOutboundJobRepository $jobs,
         private EntityManagerInterface $entityManager,
@@ -183,10 +198,14 @@ final class OutboundQueue
             $error = $exception instanceof MetaGraphApiException ? $exception->details() : ['message' => $exception->getMessage()];
             $job->setLastError(json_encode($error, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))->setLockedAt(null);
             $permanentGraphFailure = $exception instanceof MetaGraphApiException && !$exception->isRetryable();
+            // Reconhecido antes dos bracos herdados porque a taxonomia abaixo e do Graph:
+            // sem esta excecao, um canal que so caiu seria lido como desfecho desconhecido
+            // e o atendente veria "nao saiu" em vez de "na fila".
+            $temporaryChannelFailure = $exception instanceof ChannelTemporarilyUnavailable;
             if ($exception instanceof \DomainException && str_contains($exception->getMessage(), 'Automation paused')) {
                 $job->setStatus('blocked');
                 $outcome = 'failed';
-            } elseif (!$exception instanceof MetaGraphApiException && !$exception instanceof \InvalidArgumentException && !$exception instanceof \DomainException) {
+            } elseif (!$temporaryChannelFailure && !$exception instanceof MetaGraphApiException && !$exception instanceof \InvalidArgumentException && !$exception instanceof \DomainException) {
                 // A transport interruption can happen after Meta accepted the request. Never retry blindly.
                 $job->setStatus('uncertain');
                 $outcome = 'failed';
@@ -199,7 +218,10 @@ final class OutboundQueue
                 $job->setStatus('failed');
                 $outcome = 'failed';
             } else {
-                $delay = min(3600, 2 ** max(0, $job->getAttempts() - 1) * 30);
+                // So o teto muda entre os dois casos: a curva de espera e a mesma, para
+                // que o reagendamento dos canais oficiais fique como estava.
+                $cap = $temporaryChannelFailure ? self::TEMPORARY_CHANNEL_BACKOFF_CAP_SECONDS : self::GRAPH_BACKOFF_CAP_SECONDS;
+                $delay = min($cap, 2 ** max(0, $job->getAttempts() - 1) * 30);
                 $job->setStatus('retry')->setAvailableAt((new \DateTimeImmutable())->modify(sprintf('+%d seconds', $delay)));
                 $outcome = 'retried';
             }

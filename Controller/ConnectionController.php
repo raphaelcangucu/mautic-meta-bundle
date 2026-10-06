@@ -48,7 +48,10 @@ final class ConnectionController extends CommonController
         $listing = $paging->paginate($query, $request);
 
         return $this->metaView('@MauticMeta/Connection/index.html.twig', [
-            'connections'       => $repository->findBy([], ['name' => 'ASC']),
+            'connections'       => array_values(array_filter(
+                $repository->findBy([], ['name' => 'ASC']),
+                static fn (MetaConnection $connection): bool => $connection->isOnGraph(),
+            )),
             'listing'           => $listing,
             'whatsAppHealth'    => $operationalHealth->forAssets($listing['items']),
         ]);
