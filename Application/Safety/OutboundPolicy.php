@@ -17,7 +17,7 @@ final class OutboundPolicy
         private Connection $connection
     ) {}
 
-    public function assertAllowed(MetaAsset $asset, string $channel, string $recipient, string $messageType, ?int $contactId = null, bool $customerServiceReply = false): void
+    public function assertAllowed(MetaAsset $asset, string $channel, string $recipient, string $messageType, ?int $contactId = null, bool $customerServiceReply = false, bool $manualQrReply = false): void
     {
         $table = (defined('MAUTIC_TABLE_PREFIX') ? MAUTIC_TABLE_PREFIX : '').'meta_messages';
         $settings = $asset->getSettings();
@@ -33,6 +33,9 @@ final class OutboundPolicy
             return;
         }
 
+        // Only the trusted Inbox human path may relax per-recipient cadence on QR.
+        // Asset hourly/daily limits, opt-out checks and campaign safeguards still apply.
+        $manualQr = $manualQrReply && $asset->getType() === AssetType::WhatsAppQrSession && 'whatsapp' === $channel && 'text' === $messageType;
         $defaults = 'whatsapp' === $channel
             ? ['daily' => 250, 'hourly' => 50, 'recipient_daily' => 3, 'cooldown' => 60]
             : ['daily' => 50, 'hourly' => 20, 'recipient_daily' => 3, 'cooldown' => 300];
@@ -49,13 +52,13 @@ final class OutboundPolicy
         if ($this->countSince($assetId, $channel, null, new \DateTimeImmutable('-1 hour')) >= $hourly) {
             throw new \DomainException(sprintf('Local anti-spam hourly limit reached for this %s asset (%d/hour).', $channel, $hourly));
         }
-        if ($this->countSince($assetId, $channel, $recipient, new \DateTimeImmutable('-24 hours')) >= $recipientDaily) {
+        if (!$manualQr && $this->countSince($assetId, $channel, $recipient, new \DateTimeImmutable('-24 hours')) >= $recipientDaily) {
             throw new \DomainException(sprintf('Local anti-spam recipient limit reached (%d messages/24h).', $recipientDaily));
         }
         $cooldownMessageType = 'instagram' === $channel && in_array($messageType, ['private_reply', 'comment_reply'], true)
             ? $messageType
             : null;
-        if ($this->countSince($assetId, $channel, $recipient, new \DateTimeImmutable(sprintf('-%d seconds', $cooldown)), $cooldownMessageType) > 0) {
+        if (!$manualQr && $this->countSince($assetId, $channel, $recipient, new \DateTimeImmutable(sprintf('-%d seconds', $cooldown)), $cooldownMessageType) > 0) {
             throw new \DomainException(sprintf('Local anti-spam cooldown active for this recipient (%d seconds).', $cooldown));
         }
 

@@ -54,7 +54,7 @@ class IdentityManager
     {
         $this->assertChannelContactable($contact, 'whatsapp');
         $identity = $this->identities->findForAssetAndExternalId($asset, $externalId);
-        if ($identity instanceof MetaContactIdentity && $contact instanceof Lead && $identity->getContact()?->getId() !== $contact->getId()) {
+        if ($identity instanceof MetaContactIdentity && $contact instanceof Lead && $identity->getContact() instanceof Lead && $identity->getContact()->getId() !== $contact->getId()) {
             throw new \DomainException('WhatsApp identity is linked to a different Mautic contact.');
         }
         if ($identity?->getConsentStatus() === ConsentStatus::OptedOut) {

@@ -131,6 +131,41 @@ final class OutboundPolicyTest extends TestCase
         (new OutboundPolicy($db))->assertAllowed($this->asset(AssetType::WhatsAppPhoneNumber), 'whatsapp', '5511999999999', 'text');
     }
 
+    /**
+     * Resposta humana do Inbox por QR (patch que ja rodava em producao): so a cadencia por
+     * destinatario fica de fora. As duas consultas sao os limites da conta; as do destinatario
+     * nem chegam a ser feitas.
+     */
+    public function testAHumanQrReplySkipsOnlyTheRecipientCadence(): void
+    {
+        $db = $this->createMock(Connection::class);
+        $db->expects(self::exactly(2))->method('fetchOne')->willReturn(0);
+
+        (new OutboundPolicy($db))->assertAllowed($this->asset(AssetType::WhatsAppQrSession), 'whatsapp', '5511999999999', 'text', null, false, true);
+        self::assertTrue(true);
+    }
+
+    public function testAHumanQrReplyStillRespectsTheAccountLimits(): void
+    {
+        $db = $this->createMock(Connection::class);
+        $db->method('fetchOne')->willReturn(10000);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('daily limit');
+        (new OutboundPolicy($db))->assertAllowed($this->asset(AssetType::WhatsAppQrSession), 'whatsapp', '5511999999999', 'text', null, false, true);
+    }
+
+    public function testTheHumanQrFlagMeansNothingOnAnOfficialNumber(): void
+    {
+        $db = $this->createMock(Connection::class);
+        // Daily, hourly, recipient daily: the recipient cadence still applies off QR.
+        $db->method('fetchOne')->willReturnOnConsecutiveCalls(0, 0, 99);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('recipient limit');
+        (new OutboundPolicy($db))->assertAllowed($this->asset(AssetType::WhatsAppPhoneNumber), 'whatsapp', '5511999999999', 'template', null, false, true);
+    }
+
     private function asset(AssetType $type): MetaAsset
     {
         return (new MetaAsset(7))->setType($type)->setSettings([]);

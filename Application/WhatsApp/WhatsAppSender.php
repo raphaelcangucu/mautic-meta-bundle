@@ -107,7 +107,7 @@ final class WhatsAppSender
             $recipient = $this->phones->normalize($recipient, $region);
         }
         $this->identities->assertCanSend($asset, $recipient, $contact, $serviceReply);
-        $this->outboundPolicy?->assertAllowed($asset, 'whatsapp', $recipient, $type, $contact?->getId(), $serviceReply);
+        $this->outboundPolicy?->assertAllowed($asset, 'whatsapp', $recipient, $type, $contact?->getId(), $serviceReply, $human && $asset->getType() === AssetType::WhatsAppQrSession);
         // Resolver antes de registrar o log: falta de transporte e erro de
         // configuracao, nao um envio que o canal recusou.
         $transport = $this->transports->forAsset($asset);
