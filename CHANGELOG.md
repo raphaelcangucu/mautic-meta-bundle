@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.15.1 - 2026-10-25
+
+- Carry the two patches production ran on top of 0.14.2, so a deploy no longer undoes them: a human Inbox reply over a WhatsApp QR session skips only the per-recipient cadence (account limits, opt-out and campaign safeguards still apply), and a WhatsApp identity with no linked contact no longer counts as linked to a different contact.
+- No schema change is required by this release.
+
 ## 0.15.0 - 2026-10-24
 
 - Add the `email` channel and the `email_account` asset type (outside the Graph) for conversational mailboxes owned by the optional Multi Mail plugin.
