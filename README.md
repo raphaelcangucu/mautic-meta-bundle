@@ -8,6 +8,10 @@ Version 0.14.2 adds `WhatsAppTransportInterface`, the tagged `TransportResolver`
 
 QR sessions support private inbound messages and outbound text. They do not use official WABA templates or the Cloud API service window. Other send protections remain in force. Temporary disconnects may be retried within the configured attempt limit; uncertain deliveries are held for review. No schema change is required by this release.
 
+## Optional email channel
+
+Version 0.15.0 adds the `email` channel, the `email_account` asset type and the `email_message` queue operation. A plugin delivers those jobs through `ChannelDispatcherInterface`, tagged `mautic_meta.channel_dispatcher` with an `asset_type` attribute. [MauticMultiMailBundle 0.5.0](https://github.com/raphaelcangucu/mautic-multi-mail-bundle) does it for conversational mailboxes and reads replies over IMAP. Without a dispatcher an email job fails permanently. No schema change is required by this release.
+
 ## Implemented
 
 - Multiple Meta app connections.

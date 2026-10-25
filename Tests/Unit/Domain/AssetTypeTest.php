@@ -30,6 +30,12 @@ final class AssetTypeTest extends TestCase
         self::assertSame(Channel::WhatsApp, AssetType::WhatsAppQrSession->channel());
     }
 
+    public function testTheEmailAccountIsAnEmailChannelOutsideTheGraph(): void
+    {
+        self::assertSame(Channel::Email, AssetType::EmailAccount->channel());
+        self::assertFalse(AssetType::EmailAccount->isGraphAsset());
+    }
+
     public function testEveryCaseAnswersItsChannel(): void
     {
         // O match de channel() e exaustivo: um caso sem braco estoura em runtime, e nao

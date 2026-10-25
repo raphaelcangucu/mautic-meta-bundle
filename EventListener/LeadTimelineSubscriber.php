@@ -27,7 +27,7 @@ final class LeadTimelineSubscriber implements EventSubscriberInterface
     {
         $contactId = $event->getLeadId();
         if (null === $contactId) { return; }
-        foreach (['whatsapp' => 'ri-whatsapp-line', 'instagram' => 'ri-instagram-line'] as $channel => $icon) {
+        foreach (['whatsapp' => 'ri-whatsapp-line', 'instagram' => 'ri-instagram-line', 'email' => 'ri-mail-line'] as $channel => $icon) {
             $key = 'meta.'.$channel;
             $name = $this->translator->trans('mautic.meta.timeline.'.$channel);
             $event->addEventType($key, $name);

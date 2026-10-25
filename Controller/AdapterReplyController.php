@@ -72,6 +72,10 @@ final class AdapterReplyController
         if ('' === $text || '' === $key || strlen($key) > 191) {
             return new JsonResponse(['error' => 'text and idempotencyKey are required.'], 400);
         }
+        // Qualquer canal que nao seja WhatsApp vira Instagram logo abaixo; e-mail nao pode.
+        if ('email' === $conversation->getChannel()) {
+            return new JsonResponse(['error' => 'Email conversations are answered from the Inbox.'], 422);
+        }
 
         $operation = 'whatsapp' === $conversation->getChannel()
             ? 'whatsapp_text'

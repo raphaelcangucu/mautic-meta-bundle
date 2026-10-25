@@ -99,6 +99,13 @@ final class ConversationController extends AbstractController
 
             return $this->redirectToRoute('mautic_meta_conversation_view', ['conversationId' => $conversationId]);
         }
+        // E-mail precisa de assunto e thread; esta tela nao tem nenhum dos dois. Sem esta
+        // guarda, a conversa cairia no braco do Instagram logo abaixo.
+        if (!in_array($conversation->getChannel(), ['whatsapp', 'instagram'], true)) {
+            $this->addFlash('error', 'Use Atendimento para responder a esta conversa.');
+
+            return $this->redirectToRoute('mautic_meta_conversation_view', ['conversationId' => $conversationId]);
+        }
 
         $operation = 'whatsapp' === $conversation->getChannel()
             ? 'whatsapp_text'

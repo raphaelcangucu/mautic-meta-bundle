@@ -14,6 +14,7 @@ use MauticPlugin\MauticMetaBundle\Application\Queue\OutboundQueue;
 use MauticPlugin\MauticMetaBundle\Application\Support\NoopInboxIntegration;
 use MauticPlugin\MauticMetaBundle\Application\WhatsApp\WhatsAppSendResult;
 use MauticPlugin\MauticMetaBundle\Entity\MetaAsset;
+use MauticPlugin\MauticMetaBundle\Entity\MetaMessage;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJobRepository;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphApiException;
@@ -196,6 +197,55 @@ final class OutboundQueueTest extends TestCase
         self::assertSame('completed', $job->getStatus());
         self::assertSame(95, $job->getMessageLogId());
         self::assertSame(1, $job->getAttempts());
+    }
+
+    public function testHumanEmailIsDispatchedImmediatelyAndKeepsItsMessageLog(): void
+    {
+        $job = (new MetaOutboundJob(8))
+            ->setOperation('email_message')
+            ->setPayload(['_origin' => 'inbox_human', 'recipient' => 'lead@example.com', 'text' => 'Oi']);
+        [$queue, $executor] = $this->queue([]);
+        $executor->expects(self::once())->method('execute')->with($job)->willReturn(new MetaMessage(96));
+
+        self::assertTrue((new ImmediateOutboundDispatcher($queue))->dispatch($job));
+        self::assertSame('completed', $job->getStatus());
+        self::assertSame(96, $job->getMessageLogId());
+    }
+
+    public function testCampaignEmailWaitsForTheWorker(): void
+    {
+        $campaign = (new MetaOutboundJob(9))
+            ->setOperation('email_message')
+            ->setPayload(['_origin' => 'inbox_campaign']);
+        [$queue, $executor] = $this->queue([]);
+        $executor->expects(self::never())->method('execute');
+
+        self::assertFalse((new ImmediateOutboundDispatcher($queue))->dispatch($campaign));
+        self::assertSame('pending', $campaign->getStatus());
+    }
+
+    public function testQueueAcceptsEmailMessages(): void
+    {
+        $repository = $this->createMock(MetaOutboundJobRepository::class);
+        $repository->method('findOneBy')->willReturn(null);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('persist');
+        $queue = new OutboundQueue($repository, $entityManager, $this->createMock(OutboundOperationExecutor::class), $this->createMock(Connection::class), new NoopInboxIntegration());
+
+        $job = $queue->enqueue(new MetaAsset(4), 'email_message', ['recipient' => 'lead@example.com', 'subject' => 'Oi', 'text' => 'Tudo bem?'], null, 1, 'inbox:'.str_repeat('a', 16));
+
+        self::assertSame('email_message', $job->getOperation());
+    }
+
+    public function testEmailDispatchFailureWithoutDispatcherIsFinal(): void
+    {
+        $job = (new MetaOutboundJob(10))->setOperation('email_message')->setMaxAttempts(5);
+        [$queue, $executor] = $this->queue([$job]);
+        $executor->method('execute')->willThrowException(new \DomainException('No channel dispatcher is installed for asset type "email_account".'));
+
+        $queue->work();
+
+        self::assertSame('failed', $job->getStatus());
     }
 
     public function testImmediateDispatcherLeavesTemplatesAndAutomationOnQueue(): void

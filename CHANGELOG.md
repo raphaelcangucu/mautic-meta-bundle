@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.15.0 - 2026-10-24
+
+- Add the `email` channel and the `email_account` asset type (outside the Graph) for conversational mailboxes owned by the optional Multi Mail plugin.
+- Add the `email_message` queue operation and `ChannelDispatcherInterface`, tagged `mautic_meta.channel_dispatcher` and resolved by asset type, so a plugin can deliver jobs of channels that do not speak Graph. Without a dispatcher the job fails for good instead of turning uncertain.
+- Dispatch human email replies immediately after commit, like WhatsApp text; campaign email waits for the worker.
+- Show email conversation messages on the contact timeline. Refuse email conversations in the legacy Meta reply screen and in signed adapter replies, which would otherwise route them to Instagram.
+- No schema change is required by this release.
+
 ## 0.14.2 - 2026-10-06
 
 - Add a tagged WhatsApp transport boundary and QR-session asset type for the optional WhatsQR plugin.

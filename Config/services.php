@@ -8,6 +8,8 @@ use MauticPlugin\MauticMetaBundle\Infrastructure\GraphTransport;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClient;
 use MauticPlugin\MauticMetaBundle\Infrastructure\MetaGraphClientInterface;
 use MauticPlugin\MauticMetaBundle\Infrastructure\TransportResolver;
+use MauticPlugin\MauticMetaBundle\Application\Queue\ChannelDispatchers;
+use MauticPlugin\MauticMetaBundle\Application\Queue\NoopChannelDispatcher;
 use MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface;
 use MauticPlugin\MauticMetaBundle\Application\Support\NoopInboxIntegration;
 use MauticPlugin\MauticMetaBundle\Domain\AssetType;
@@ -15,6 +17,7 @@ use MauticPlugin\MauticMetaBundle\Security\CredentialVault;
 use MauticPlugin\MauticMetaBundle\Security\WebhookSignatureVerifier;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
 return function (ContainerConfigurator $configurator): void {
@@ -48,4 +51,9 @@ return function (ContainerConfigurator $configurator): void {
         ->tag(TransportResolver::TAG, ['asset_type' => AssetType::WhatsAppPhoneNumber->value]);
     $services->set(TransportResolver::class)
         ->args([tagged_iterator(TransportResolver::TAG, 'asset_type')]);
+    // Mesmo desenho para os canais fora do Graph: o Multi Mail entra pela tag do e-mail.
+    // O fallback e explicito: o load() de outro bundle pode apelidar a interface com o
+    // despachante dele, e um asset sem despachante proprio tem de falhar, nao ir para la.
+    $services->set(ChannelDispatchers::class)
+        ->args([tagged_iterator(ChannelDispatchers::TAG, 'asset_type'), service(NoopChannelDispatcher::class)]);
 };

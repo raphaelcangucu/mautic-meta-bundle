@@ -46,7 +46,7 @@ final class OutboundQueue
      */
     public function enqueue(MetaAsset $asset, string $operation, array $payload, ?Lead $contact = null, int $maxAttempts = 5, ?string $idempotencyKey = null): MetaOutboundJob
     {
-        if (!in_array($operation, ['whatsapp_text', 'whatsapp_template', 'whatsapp_media', 'whatsapp_interactive', 'instagram_private_reply', 'instagram_public_reply', 'instagram_direct_message', 'facebook_public_reply', 'facebook_direct_message'], true)) {
+        if (!in_array($operation, ['whatsapp_text', 'whatsapp_template', 'whatsapp_media', 'whatsapp_interactive', 'instagram_private_reply', 'instagram_public_reply', 'instagram_direct_message', 'facebook_public_reply', 'facebook_direct_message', 'email_message'], true)) {
             throw new \InvalidArgumentException('Unsupported Meta queue operation.');
         }
         if (null !== $idempotencyKey && $this->jobs->findOneBy(['idempotencyKey' => $idempotencyKey]) instanceof MetaOutboundJob) {

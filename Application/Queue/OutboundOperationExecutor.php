@@ -17,6 +17,7 @@ class OutboundOperationExecutor
         private InstagramService $instagram,
         private ?\MauticPlugin\MauticMetaBundle\Application\Facebook\FacebookService $facebook = null,
         private ?\MauticPlugin\MauticMetaBundle\Application\Support\InboxIntegrationInterface $inboxIntegration = null,
+        private ?ChannelDispatchers $channels = null,
     ) {}
 
     public function execute(MetaOutboundJob $job): MetaMessage|WhatsAppSendResult
@@ -44,6 +45,7 @@ class OutboundOperationExecutor
             'instagram_public_reply' => $this->instagram->publicReply($job->getAsset(), $recipient, (string) ($payload['text'] ?? ''), $contact, $alreadyGuarded),
             'instagram_direct_message' => $this->instagram->directMessage($job->getAsset(), $recipient, (string) ($payload['text'] ?? ''), $contact, $alreadyGuarded),
             'facebook_public_reply', 'facebook_direct_message' => ($this->facebook ?? throw new \LogicException('Facebook service unavailable.'))->send($job->getAsset(), $recipient, (string) ($payload['text'] ?? ''), 'facebook_public_reply' === $job->getOperation(), $contact, $alreadyGuarded),
+            'email_message' => ($this->channels ?? new ChannelDispatchers())->dispatch($job),
             default => throw new \InvalidArgumentException('Unsupported Meta queue operation.'),
         };
 

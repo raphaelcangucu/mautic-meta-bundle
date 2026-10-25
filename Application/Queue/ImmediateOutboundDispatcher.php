@@ -7,7 +7,7 @@ namespace MauticPlugin\MauticMetaBundle\Application\Queue;
 use MauticPlugin\MauticMetaBundle\Entity\MetaOutboundJob;
 
 /**
- * Synchronously dispatches human WhatsApp service replies after local state commits.
+ * Synchronously dispatches human WhatsApp and email replies after local state commits.
  */
 final class ImmediateOutboundDispatcher
 {
@@ -17,7 +17,7 @@ final class ImmediateOutboundDispatcher
 
     public function supports(MetaOutboundJob $job): bool
     {
-        return 'whatsapp_text' === $job->getOperation()
+        return in_array($job->getOperation(), ['whatsapp_text', 'email_message'], true)
             && 'inbox_human' === ($job->getPayload()['_origin'] ?? null);
     }
 

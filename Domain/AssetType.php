@@ -11,6 +11,8 @@ enum AssetType: string
     case InstagramAccount = 'instagram_account';
     case FacebookPage = 'facebook_page';
     case WhatsAppQrSession = 'whatsapp_qr_session';
+    // Conta de e-mail conversacional do Multi Mail. O externalId e o id da conexao de la.
+    case EmailAccount = 'email_account';
 
     public function channel(): Channel
     {
@@ -18,6 +20,7 @@ enum AssetType: string
             self::WhatsAppBusinessAccount, self::WhatsAppPhoneNumber, self::WhatsAppQrSession => Channel::WhatsApp,
             self::InstagramAccount => Channel::Instagram,
             self::FacebookPage => Channel::Facebook,
+            self::EmailAccount => Channel::Email,
         };
     }
 
@@ -31,7 +34,7 @@ enum AssetType: string
     {
         return match ($this) {
             self::WhatsAppBusinessAccount, self::WhatsAppPhoneNumber, self::InstagramAccount, self::FacebookPage => true,
-            self::WhatsAppQrSession => false,
+            self::WhatsAppQrSession, self::EmailAccount => false,
         };
     }
 }

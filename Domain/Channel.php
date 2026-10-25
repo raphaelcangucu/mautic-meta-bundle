@@ -9,4 +9,5 @@ enum Channel: string
     case WhatsApp = 'whatsapp';
     case Instagram = 'instagram';
     case Facebook = 'facebook';
+    case Email = 'email';
 }

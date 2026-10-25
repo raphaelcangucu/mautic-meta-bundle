@@ -18,8 +18,13 @@ final class LeadTimelineSubscriberTest extends TestCase
     {
         $message = (new MetaMessage(41))->setChannel('whatsapp')->setDirection('inbound')->setMessageType('text')->setStatus('received')->setRecipient('5511999999999');
         $repository = $this->createMock(MetaMessageRepository::class);
-        $repository->expects(self::exactly(2))->method('getContactTimeline')->willReturnCallback(
-            static fn (int $contactId, string $channel): array => 'whatsapp' === $channel ? ['results' => [$message], 'total' => 1] : ['results' => [], 'total' => 0],
+        $asked = [];
+        $repository->expects(self::exactly(3))->method('getContactTimeline')->willReturnCallback(
+            static function (int $contactId, string $channel) use ($message, &$asked): array {
+                $asked[] = $channel;
+
+                return 'whatsapp' === $channel ? ['results' => [$message], 'total' => 1] : ['results' => [], 'total' => 0];
+            },
         );
         $translator = $this->createMock(TranslatorInterface::class);
         $translator->method('trans')->willReturnArgument(0);
@@ -32,5 +37,6 @@ final class LeadTimelineSubscriberTest extends TestCase
         self::assertCount(1, $events);
         self::assertSame('meta.whatsapp.41', $events[0]['eventId']);
         self::assertSame(7, $events[0]['contactId']);
+        self::assertSame(['whatsapp', 'instagram', 'email'], $asked);
     }
 }
