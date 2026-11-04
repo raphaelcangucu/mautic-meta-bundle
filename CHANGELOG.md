@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.15.2 - 2026-11-04
+
+- The Instagram media resolver requires only a published connection. A lost WhatsApp number sets the whole connection to `error`, and the resolver then refused a healthy Instagram account.
+
 ## 0.15.1 - 2026-10-25
 
 - Carry the two patches production ran on top of 0.14.2, so a deploy no longer undoes them: a human Inbox reply over a WhatsApp QR session skips only the per-recipient cadence (account limits, opt-out and campaign safeguards still apply), and a WhatsApp identity with no linked contact no longer counts as linked to a different contact.

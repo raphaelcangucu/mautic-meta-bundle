@@ -107,8 +107,9 @@ final class InstagramMediaResolver
             AssetType::InstagramAccount !== $asset->getType()
             || !$asset->isPublished()
             || 'active' !== $asset->getStatus()
+            // The connection status covers every asset on it, so a lost WhatsApp
+            // number marks it `error`. This endpoint needs only this account.
             || !$connection->isPublished()
-            || 'active' !== $connection->getStatus()
         ) {
             throw new InstagramMediaResolveException('instagram_asset_unavailable', Response::HTTP_UNPROCESSABLE_ENTITY, false);
         }
