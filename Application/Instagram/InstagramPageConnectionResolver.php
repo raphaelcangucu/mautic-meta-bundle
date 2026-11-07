@@ -14,6 +14,9 @@ final class InstagramPageConnectionResolver
     /** @var array<int, string> */
     private array $pageIds = [];
 
+    /** @var array<int, list<string>> */
+    private array $pageTasks = [];
+
     public function __construct(
         private MetaGraphClientInterface $graph,
         private InstagramAccountResolver $accounts,
@@ -25,7 +28,7 @@ final class InstagramPageConnectionResolver
     {
         $connection = $account->getConnection();
         $canonicalId = $this->accounts->resolve($account);
-        $query = ['fields' => 'id,access_token,instagram_business_account{id},connected_instagram_account{id}', 'limit' => 100];
+        $query = ['fields' => 'id,access_token,tasks,instagram_business_account{id},connected_instagram_account{id}', 'limit' => 100];
         $seenCursors = [];
         do {
             $pages = $this->graph->get($connection, 'me/accounts', $query);
@@ -52,6 +55,7 @@ final class InstagramPageConnectionResolver
                 $pageConnection = clone $connection;
                 $pageConnection->setEncryptedAccessToken($this->vault->seal($token));
                 $this->pageIds[spl_object_id($account)] = $pageId;
+                $this->pageTasks[spl_object_id($account)] = array_map('strval', (array) ($page['tasks'] ?? []));
 
                 return $pageConnection;
             }
@@ -63,7 +67,7 @@ final class InstagramPageConnectionResolver
             $query['after'] = $after;
         } while (true);
 
-        throw new \RuntimeException('No accessible Facebook Page is linked to this Instagram account for messaging.');
+        throw new InstagramPageNotLinkedException('No accessible Facebook Page is linked to this Instagram account for messaging.');
     }
 
     public function pageId(MetaAsset $account): string
@@ -73,5 +77,17 @@ final class InstagramPageConnectionResolver
         }
 
         return $this->pageIds[spl_object_id($account)];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function pageTasks(MetaAsset $account): array
+    {
+        if (!isset($this->pageTasks[spl_object_id($account)])) {
+            $this->resolve($account);
+        }
+
+        return $this->pageTasks[spl_object_id($account)];
     }
 }

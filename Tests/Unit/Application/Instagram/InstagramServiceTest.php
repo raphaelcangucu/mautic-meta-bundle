@@ -73,8 +73,62 @@ final class InstagramServiceTest extends TestCase
         self::assertSame('conversation-1', $result['data'][0]['id']);
     }
 
+    /**
+     * @param list<array<string, mixed>> $pages
+     * @param list<array<string, mixed>> $apps
+     */
+    private function messagingService(array $pages, array $apps): InstagramService
+    {
+        $graph = $this->createMock(MetaGraphClientInterface::class);
+        $graph->method('get')->willReturnCallback(static fn (MetaConnection $connection, string $path): array => match ($path) {
+            'me/accounts'            => ['data' => $pages],
+            'ig-1'                   => ['ig_user_id' => 'ig-1'],
+            'page-1/subscribed_apps' => ['data' => $apps],
+            default                  => throw new \LogicException('Unexpected read of '.$path),
+        });
+        $encryption = $this->createMock(EncryptionHelper::class);
+        $encryption->method('encrypt')->willReturn('sealed-page-token');
+        $accounts = new InstagramAccountResolver($graph);
+
+        return new InstagramService($graph, $this->createMock(EntityManagerInterface::class), $this->createMock(IdentityManager::class), accountResolver: $accounts, pageConnections: new InstagramPageConnectionResolver($graph, $accounts, new CredentialVault($encryption)));
+    }
+
+    /** @return array<string, mixed> */
+    private function page(array $tasks = ['MANAGE', 'MESSAGING']): array
+    {
+        return ['id' => 'page-1', 'access_token' => 'page-token', 'tasks' => $tasks, 'instagram_business_account' => ['id' => 'ig-1']];
+    }
+
+    public function testMessagingIsReadyWithThePageTheTaskAndTheApp(): void
+    {
+        $status = $this->messagingService([$this->page()], [['id' => 'app-1']])->messagingStatus($this->account());
+
+        self::assertSame(['ready' => true, 'reason' => null, 'pageId' => 'page-1'], $status);
+    }
+
+    public function testMessagingNeedsAPageTheSystemUserCanReach(): void
+    {
+        $status = $this->messagingService([], [])->messagingStatus($this->account());
+
+        self::assertSame(['ready' => false, 'reason' => 'instagram_page_not_linked', 'pageId' => null], $status);
+    }
+
+    public function testMessagingNeedsTheMessagingTaskOnThePage(): void
+    {
+        $status = $this->messagingService([$this->page(['ANALYZE'])], [['id' => 'app-1']])->messagingStatus($this->account());
+
+        self::assertSame(['ready' => false, 'reason' => 'instagram_page_messaging_not_assigned', 'pageId' => 'page-1'], $status);
+    }
+
+    public function testMessagingNeedsThisAppSubscribedToThePage(): void
+    {
+        $status = $this->messagingService([$this->page()], [['id' => 'another-app']])->messagingStatus($this->account());
+
+        self::assertSame(['ready' => false, 'reason' => 'instagram_page_not_subscribed', 'pageId' => 'page-1'], $status);
+    }
+
     private function account(): MetaAsset
     {
-        return (new MetaAsset())->setConnection((new MetaConnection())->setName('Primary'))->setExternalId('ig-1')->setName('@brand')->setType(AssetType::InstagramAccount)->setStatus('active')->setIsPublished(true);
+        return (new MetaAsset())->setConnection((new MetaConnection())->setName('Primary')->setAppId('app-1'))->setExternalId('ig-1')->setName('@brand')->setType(AssetType::InstagramAccount)->setStatus('active')->setIsPublished(true);
     }
 }

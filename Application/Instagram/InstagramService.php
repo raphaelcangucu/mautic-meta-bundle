@@ -92,6 +92,37 @@ final class InstagramService
         return $this->send($account, $commentId, 'comment_reply', ['message' => $this->text($text, 2200)], $commentId.'/replies', $contact, $human);
     }
 
+    /**
+     * What a private reply needs from Meta, read the way the send path reaches it: the linked Page,
+     * the messaging task on that Page, and this app subscribed to it. A healthy post proves none of them.
+     *
+     * @return array{ready: bool, reason: ?string, pageId: ?string}
+     */
+    public function messagingStatus(MetaAsset $account): array
+    {
+        $this->assertAccount($account);
+        if (null === $this->pageConnections) {
+            throw new \LogicException('Instagram messaging status needs the Page connection resolver.');
+        }
+        try {
+            $connection = $this->pageConnections->resolve($account);
+        } catch (InstagramPageNotLinkedException) {
+            return ['ready' => false, 'reason' => 'instagram_page_not_linked', 'pageId' => null];
+        }
+        $pageId = $this->pageConnections->pageId($account);
+        if (!in_array('MESSAGING', $this->pageConnections->pageTasks($account), true)) {
+            return ['ready' => false, 'reason' => 'instagram_page_messaging_not_assigned', 'pageId' => $pageId];
+        }
+        $apps = $this->graph->get($connection, $pageId.'/subscribed_apps', ['fields' => 'id']);
+        foreach ((array) ($apps['data'] ?? []) as $app) {
+            if (is_array($app) && (string) ($app['id'] ?? '') === $account->getConnection()->getAppId()) {
+                return ['ready' => true, 'reason' => null, 'pageId' => $pageId];
+            }
+        }
+
+        return ['ready' => false, 'reason' => 'instagram_page_not_subscribed', 'pageId' => $pageId];
+    }
+
     public function conversations(MetaAsset $account, int $limit = 50, ?string $after = null): array
     {
         $this->assertAccount($account);
