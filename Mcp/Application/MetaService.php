@@ -189,6 +189,7 @@ final class MetaService
                 'instagram_media' => $this->instagram->media($asset, $limit, $after),
                 'instagram_comments' => $this->instagram->comments($asset, $this->requiredResourceId($resourceId, 'media'), $limit, $after),
                 'instagram_insights' => $this->instagram->insights($asset, $this->requiredResourceId($resourceId, 'media'), $metrics),
+                'instagram_messaging_status' => $this->instagram->messagingStatus($asset),
                 'instagram_conversations' => $this->instagram->conversations($asset, $limit, $after),
                 'instagram_conversation_messages' => $this->instagram->conversationMessages($asset, $this->requiredResourceId($resourceId, 'conversation')),
                 default => throw new BadRequestHttpException('Unsupported Meta API read action.'),

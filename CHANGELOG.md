@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.15.3 - 2026-11-06
+
+- Add the `instagram_messaging_status` read to `mautic_read_meta_api`. It answers whether a private reply can leave an Instagram account: the Page the System User reaches, the `MESSAGING` task on it, and this app in the Page's `subscribed_apps`. No schema change is required.
+
 ## 0.15.2 - 2026-11-04
 
 - The Instagram media resolver requires only a published connection. A lost WhatsApp number sets the whole connection to `error`, and the resolver then refused a healthy Instagram account.
